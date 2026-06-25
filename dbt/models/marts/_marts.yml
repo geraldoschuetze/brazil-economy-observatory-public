@@ -1,0 +1,497 @@
+version: 2
+
+models:
+  - name: fct_indicadores_macro
+    description: >
+      Tabela diária ampla de indicadores macroeconômicos brasileiros: uma linha
+      por data de observação. Combina taxas de juro (Selic meta, Selic efetiva,
+      CDI), inflação (IPCA mensal e acumulado 12m, com forward-fill para alinhar
+      a série mensal ao calendário diário), câmbio (USD/BRL e EUR/BRL com média
+      móvel e volatilidade de 30 dias) e o juro real ex-post (Selic meta menos
+      IPCA 12m). É a tabela-base de referência de mercado para os demais marts.
+    columns:
+      - name: obs_date
+        description: "Data de observação (granularidade diária). Chave primária do modelo."
+        tests: [not_null, unique]
+      - name: selic_meta
+        description: "Taxa Selic meta definida pelo COPOM (% a.a.), série SGS 432."
+        meta:
+          om_glossario: "Selic"
+      - name: selic_efetiva
+        description: "Taxa Selic efetiva (% a.a.), série SGS 4189, calculada diariamente pelo BACEN."
+      - name: cdi_diario
+        description: "CDI diário (% a.d.), série SGS 12. Base de rentabilidade da maioria dos fundos de renda fixa."
+        meta:
+          om_glossario: "CDI"
+      - name: ipca_mensal
+        description: "Variação mensal do IPCA (%), série SGS 433. Disponível apenas no mês de divulgação; nulo nos demais dias."
+      - name: ipca_12m
+        description: "IPCA acumulado em 12 meses (%), série SGS 13522. Divulgado mensalmente; nulo nos demais dias."
+        meta:
+          om_glossario: "IPCA"
+      - name: ipca_mensal_ff
+        description: "IPCA mensal com forward-fill: o último valor divulgado é propagado para os dias seguintes até a próxima divulgação, permitindo alinhamento diário."
+      - name: ipca_12m_ff
+        description: "IPCA 12m com forward-fill: análogo a ipca_mensal_ff, porém para a variação acumulada de 12 meses."
+      - name: usd_brl
+        description: "Taxa de câmbio USD/BRL (venda) na data, série SGS 1."
+        tests: [non_negative]
+      - name: eur_brl
+        description: "Taxa de câmbio EUR/BRL (venda) na data, série SGS 21619."
+      - name: usd_mm30
+        description: "Média móvel de 30 dias da taxa USD/BRL, calculada apenas sobre dias com cotação (dias úteis)."
+      - name: usd_vol_30d_aa
+        description: "Volatilidade anualizada do USD/BRL nos últimos 30 dias úteis (desvio-padrão dos log-retornos diários × √252 × 100), em % a.a."
+      - name: juro_real_12m
+        description: "Juro real ex-post aproximado: Selic meta menos IPCA acumulado 12m (com forward-fill), em pontos percentuais."
+        meta:
+          om_glossario: "Juro real ex-post"
+
+  - name: fct_inflacao_drivers_mensal
+    description: >
+      Visão mensal da inflação e de seus principais determinantes, todos na
+      escala de variação em 12 meses, ao lado da banda de meta oficial.
+      Permite identificar se a inflação está convergindo para a meta e quais
+      fatores — câmbio, atividade econômica, inflação por atacado — estão
+      pressionando os preços ao consumidor.
+    columns:
+      - name: mes
+        description: "Mês de referência (primeiro dia do mês, YYYY-MM-DD). Chave do modelo."
+        tests: [not_null, unique]
+      - name: ipca_12m
+        description: "IPCA acumulado em 12 meses (%), indicador oficial de inflação ao consumidor (SGS 13522)."
+      - name: meta_inflacao
+        description: "Meta de inflação anual definida pelo CMN para o ano de referência (%), série SGS 13521, com forward-fill dentro do ano."
+      - name: meta_teto
+        description: "Teto da banda de tolerância da meta (meta + 1,5 p.p.)."
+      - name: meta_piso
+        description: "Piso da banda de tolerância da meta (meta − 1,5 p.p.)."
+      - name: igpm_12m
+        description: "IGP-M acumulado em 12 meses (%), índice de preços por atacado da FGV (SGS 189, composto mensalmente). Tende a antecipar movimentos do IPCA."
+        meta:
+          om_glossario: "IGP-M"
+      - name: nucleo_12m
+        description: "Núcleo de inflação (médias aparadas suavizadas) acumulado em 12 meses (%), série SGS 4466. Mede a tendência de inflação excluindo variações mais voláteis."
+      - name: difusao
+        description: "Índice de difusão do IPCA (%): percentual de subitens com variação positiva no mês (SGS 21379). Indica a amplitude da inflação."
+      - name: desemprego
+        description: "Taxa de desemprego da PNADC (%), série SGS 24369. Proxy de pressão de demanda sobre a inflação."
+        tests:
+          - in_range:
+              min_value: 0
+              max_value: 100
+      - name: usd_var_12m
+        description: "Variação em 12 meses da taxa de câmbio USD/BRL (%), calculada sobre a média mensal (SGS 1). Mede o pass-through cambial para a inflação."
+      - name: ibcbr_var_12m
+        description: "Variação em 12 meses do IBC-Br (%), proxy mensal de atividade econômica do BACEN (SGS 24364). Indica pressão de demanda."
+
+  - name: fct_fiscal_mensal
+    description: >
+      Panorama fiscal do governo central em base mensal: dívida bruta em
+      percentual do PIB e resultado primário (superávit/déficit) em percentual
+      do PIB. Dados originados do SGS/BACEN. O resultado primário segue a
+      convenção de superávit positivo (o sinal da série SGS 5793, que segue o
+      NFSP — necessidade de financiamento —, é invertido para leitura intuitiva
+      nos gráficos).
+    columns:
+      - name: mes
+        description: "Mês de referência (primeiro dia do mês, YYYY-MM-DD). Chave do modelo."
+        tests: [not_null, unique]
+      - name: divida_bruta_pib
+        description: "Dívida bruta do governo geral em percentual do PIB (%), série SGS 13762."
+        meta:
+          om_glossario: "Dívida bruta"
+      - name: resultado_primario_pib
+        description: "Resultado primário do governo central em percentual do PIB (%), série SGS 5793 com sinal invertido: valores positivos = superávit, negativos = déficit."
+        meta:
+          om_glossario: "Resultado primário"
+
+  - name: fct_focus_ipca_mensal
+    description: >
+      Expectativas medianas de mercado para o IPCA (pesquisa Focus do BACEN)
+      versus IPCA realizado e meta oficial, mensalmente. Inclui derivações
+      de política monetária relevantes para economistas: juro real ex-ante
+      (Fisher usando a expectativa de inflação), juro real ex-post (Fisher
+      usando IPCA realizado), desancoragem das expectativas em relação à meta
+      e uma estimativa de juro neutro fixo de 4,75% a.a.
+    columns:
+      - name: mes
+        description: "Mês de referência (primeiro dia do mês, YYYY-MM-DD). Chave do modelo."
+        tests: [not_null, unique]
+      - name: exp_ano_corrente
+        description: "Mediana das projeções Focus para o IPCA do ano calendário corrente (%), média das coletas dentro do mês."
+        meta:
+          om_glossario: "Focus"
+      - name: exp_ano_seguinte
+        description: "Mediana das projeções Focus para o IPCA do ano calendário seguinte (%), média das coletas dentro do mês."
+      - name: ipca_12m
+        description: "IPCA acumulado realizado em 12 meses (%), série SGS 13522."
+      - name: meta
+        description: "Meta de inflação oficial para o ano de referência (%), série SGS 13521 com forward-fill."
+      - name: exp_12m
+        description: "Expectativa de IPCA para os próximos 12 meses (%): média ponderada das expectativas do ano corrente e do seguinte, conforme proporção de meses restantes no ano (aproximação da Focus 'suavizada')."
+      - name: desancoragem
+        description: "Distância entre a expectativa para o ano seguinte e a meta oficial (p.p.): valores positivos indicam expectativas acima da meta, sinalizando perda de credibilidade da política monetária."
+        meta:
+          om_glossario: "Desancoragem"
+      - name: juro_real_ex_ante
+        description: "Juro real ex-ante (% a.a.): taxa real de política monetária calculada pela equação de Fisher usando a expectativa de inflação 12m (indica a postura atual da política monetária)."
+        meta:
+          om_glossario: "Juro real ex-ante"
+      - name: juro_real_ex_post
+        description: "Juro real ex-post (% a.a.): taxa real de política monetária calculada pela equação de Fisher usando o IPCA realizado 12m."
+      - name: juro_neutro
+        description: "Estimativa de juro real neutro (% a.a.): constante de 4,75%, compatível com as estimativas do BACEN (intervalo ~4,6–5,0%). Usada como referência nos gráficos de política monetária."
+
+  - name: fct_taylor_mensal
+    description: >
+      Modelos macroeconômicos clássicos aplicados à economia brasileira, em base
+      mensal. Calcula a Selic prescrita pela Regra de Taylor (1993) e a compara
+      à Selic efetiva, além de calcular o hiato do produto, o crescimento real
+      de 12 meses e o diferencial r−g (juro real menos crescimento), indicador
+      de dinâmica da dívida pública.
+    columns:
+      - name: mes
+        description: "Mês de referência (primeiro dia do mês, YYYY-MM-DD). Chave do modelo."
+        tests: [not_null, unique]
+      - name: selic
+        description: "Selic meta média no mês (% a.a.), série SGS 432."
+      - name: selic_taylor
+        description: "Selic prescrita pela Regra de Taylor (% a.a.): r* + E[pi] + 0,5×(E[pi]−meta) + 0,5×hiato, com r* = 4,75%."
+        meta:
+          om_glossario: "Regra de Taylor"
+      - name: hiato
+        description: "Hiato do produto (%): desvio percentual do IBC-Br em relação à sua média móvel de 24 meses (proxy de filtro HP). Valores positivos = economia acima do potencial."
+        meta:
+          om_glossario: "Curva de Phillips"
+      - name: juro_real_ex_ante
+        description: "Juro real ex-ante (% a.a.): mesmo conceito de fct_focus_ipca_mensal, calculado pela equação de Fisher com expectativa Focus de inflação 12m."
+      - name: crescimento_12m
+        description: "Variação em 12 meses do IBC-Br (%), proxy de crescimento real do PIB (g na dinâmica da dívida)."
+      - name: r_menos_g
+        description: "Diferencial r−g (p.p.): juro real ex-ante menos crescimento real de 12 meses. Quando positivo com dívida elevada, a razão dívida/PIB tende a crescer sem superávit primário."
+
+  - name: fct_pix_uf_mensal
+    description: >
+      Volume mensal de transações PIX por Unidade da Federação (UF): valores
+      pagos e recebidos, quantidades, ticket médio, desagregação por pessoa
+      física/jurídica e PIX per capita normalizado pela população IBGE.
+      Os totais nacionais correspondem à soma sobre todos os estados.
+    columns:
+      - name: anomes
+        description: "Ano e mês de referência no formato YYYYMM (ex.: 202401 = jan/2024)."
+        tests: [not_null]
+      - name: mes
+        description: "Mês de referência como data (primeiro dia do mês, YYYY-MM-DD)."
+      - name: estado_ibge
+        description: "Código IBGE numérico da UF (ex.: 35 = SP). O valor -1 identifica o bucket 'NÃO INFORMADO'."
+        tests: [not_null]
+      - name: estado
+        description: "Nome da UF por extenso (ex.: 'São Paulo')."
+      - name: uf_iso
+        description: "Código ISO 3166-2 da UF no formato 'BR-XX' (ex.: 'BR-SP'), usado pelo mapa do Brasil no Superset."
+      - name: sigla_regiao
+        description: "Sigla da macrorregião geográfica (N, NE, CO, SE, S)."
+      - name: regiao
+        description: "Nome da macrorregião geográfica por extenso (ex.: 'Sudeste')."
+      - name: vl_pago
+        description: "Valor total de PIX pagos pela UF no mês (R$), soma de pessoa física e jurídica."
+        tests: [non_negative]
+      - name: qt_pago
+        description: "Quantidade de transações PIX pagas pela UF no mês (PF + PJ)."
+      - name: vl_recebido
+        description: "Valor total de PIX recebidos pela UF no mês (R$), soma de PF e PJ como recebedores."
+      - name: qt_recebido
+        description: "Quantidade de transações PIX recebidas pela UF no mês (PF + PJ como recebedores)."
+      - name: vl_pago_pf
+        description: "Valor de PIX pagos por pessoas físicas (CPF) na UF no mês (R$)."
+      - name: vl_pago_pj
+        description: "Valor de PIX pagos por pessoas jurídicas (CNPJ) na UF no mês (R$)."
+      - name: ticket_medio
+        description: "Valor médio por transação PIX paga na UF no mês (R$): vl_pago / qt_pago."
+      - name: pessoas_pagadoras_pf
+        description: "Número de pessoas físicas únicas que realizaram ao menos um PIX na UF no mês (qt_pes_pagador_pf do BACEN)."
+      - name: populacao
+        description: "Estimativa populacional da UF (IBGE). Usada como denominador no cálculo per capita."
+      - name: vl_pago_per_capita
+        description: "Valor de PIX pago per capita na UF no mês (R$): vl_pago / populacao."
+
+  - name: fct_pix_projecao
+    description: >
+      Volume mensal nacional de PIX (realizados + projeção linear de 6 meses)
+      no formato longo por tipo de pagador (CPF / CNPJ). A regressão OLS
+      (regr_slope/regr_intercept) é ajustada separadamente para cada tipo sobre
+      os últimos 24 meses completos. Como a regressão é aditiva, somar CPF e CNPJ
+      reproduz a projeção total quando nenhum filtro é aplicado; ao filtrar por
+      tipo, o gráfico exibe apenas aquele perfil de pagador.
+    columns:
+      - name: mes
+        description: "Mês de referência (primeiro dia do mês, YYYY-MM-DD). Não é único: o mês âncora da transição carrega tanto o último ponto realizado quanto o primeiro projetado."
+        tests: [not_null]
+      - name: tipo_pessoa
+        description: "Tipo de pagador: 'CPF (pessoa física)' ou 'CNPJ (pessoa jurídica)'."
+      - name: vl_realizado
+        description: "Volume mensal de PIX realizado (R$). Preenchido apenas para meses históricos; nulo nos meses projetados."
+      - name: vl_projetado
+        description: "Volume mensal de PIX projetado pela regressão OLS (R$). Preenchido apenas para os meses de projeção (inclusive o mês âncora); nulo nos meses históricos."
+      - name: projecao
+        description: "Indicador booleano: true = mês projetado (futuro), false = mês histórico realizado."
+
+  - name: fct_pix_per_capita_rank
+    description: >
+      Ranking estadual de PIX pago per capita no último mês completo disponível,
+      no formato longo por tipo de pagador (CPF/CNPJ). Permite que o filtro
+      CPF/CNPJ no dashboard selecione o perfil de pagador desejado; sem filtro,
+      a soma de ambos os tipos equivale ao total per capita (ambos dividem pela
+      mesma população estadual). Nomes de colunas amigáveis para exibição em
+      tabelas.
+    tests:
+      # Formato longo: cada estado aparece 1x por tipo_pessoa (CPF/CNPJ), entao
+      # "Estado" NAO e unico sozinho — o grao real e ("Estado", tipo_pessoa).
+      - unique_combination:
+          name: unique_fct_pix_per_capita_rank_estado_tipo_pessoa
+          combination_of_columns: ['"Estado"', 'tipo_pessoa']
+    columns:
+      - name: Estado
+        quote: true  # alias is double-quoted in the model ("Estado"); without this dbt emits unquoted `Estado` and Postgres folds it to `estado` -> "column does not exist"
+        description: "Nome da UF por extenso (ex.: 'São Paulo')."
+        tests: [not_null]
+      - name: uf_iso
+        description: "Código ISO 3166-2 da UF no formato 'BR-XX', chave para o mapa do Brasil no Superset."
+      - name: Região
+        description: "Sigla da macrorregião geográfica (N, NE, CO, SE, S)."
+      - name: tipo_pessoa
+        description: "Tipo de pagador: 'CPF (pessoa física)' ou 'CNPJ (pessoa jurídica)'."
+      - name: mes
+        description: "Mês de referência do snapshot (último mês completo disponível)."
+      - name: vl_pago
+        description: "Valor total de PIX pagos pelo estado e tipo de pessoa no mês (R$)."
+      - name: qt_pago
+        description: "Quantidade de transações PIX pagas pelo estado e tipo de pessoa no mês."
+      - name: populacao
+        description: "Estimativa populacional da UF (IBGE), denominador do cálculo per capita."
+      - name: vl_pago_per_capita
+        description: "Valor de PIX pago per capita pelo estado e tipo de pessoa no mês (R$): vl_pago / populacao."
+        meta:
+          om_glossario: "PIX per capita"
+        tests: [non_negative]
+      - name: ticket_medio
+        description: "Valor médio por transação PIX paga pelo estado e tipo de pessoa no mês (R$): vl_pago / qt_pago."
+
+  - name: fct_fundos_diario
+    description: >
+      Agregados diários do universo de fundos de investimento CVM, agrupados por
+      tipo de fundo (tp_fundo). Dias com cobertura parcial (fins de semana,
+      feriados em que apenas uma fração dos fundos reporta) são descartados:
+      patrimônio líquido é uma variável de estoque e cobertura incompleta gera
+      quedas artificiais nos gráficos de nível.
+    columns:
+      - name: dt_comptc
+        description: "Data de competência do informe diário da CVM (YYYY-MM-DD)."
+        tests: [not_null]
+      - name: tp_fundo
+        description: "Tipo de fundo conforme cadastro CVM (ex.: 'FI', 'FIC'). 'N/D' quando não informado."
+        tests: [not_null]
+      - name: n_fundos
+        description: "Número de fundos distintos que reportaram na data, para o tipo."
+      - name: patrimonio_liquido
+        description: "Patrimônio líquido total dos fundos do tipo na data (R$), soma dos valores informados no informe diário."
+      - name: captacao_dia
+        description: "Total de captações no dia pelos fundos do tipo (R$): soma de aplicações recebidas."
+      - name: resgate_dia
+        description: "Total de resgates no dia pelos fundos do tipo (R$): soma de resgates efetuados."
+      - name: captacao_liquida
+        description: "Captação líquida no dia (R$): captacao_dia − resgate_dia."
+      - name: cotistas
+        description: "Número total de cotistas dos fundos do tipo na data (soma dos nr_cotst informados)."
+
+  - name: fct_fundos_selic_mensal
+    description: >
+      Mart cruzado entre fontes: fluxo mensal de fundos de investimento (CVM)
+      versus nível da Selic (BACEN), mês a mês. Permite visualizar a clássica
+      relação entre movimentos de taxa de juro e captação líquida da indústria
+      de fundos — quando a Selic sobe, fundos de renda fixa tendem a captar mais.
+      Mês corrente excluído (ambas as fontes ainda parciais).
+    columns:
+      - name: mes
+        description: "Mês de referência (primeiro dia do mês, YYYY-MM-DD). Chave do modelo."
+        tests: [not_null, unique]
+      - name: captacao
+        description: "Total de captações (aplicações) de todos os fundos no mês (R$)."
+      - name: resgates
+        description: "Total de resgates de todos os fundos no mês (R$)."
+      - name: captacao_liquida
+        description: "Captação líquida da indústria no mês (R$): captacao − resgates."
+      - name: selic_media
+        description: "Selic meta média no mês (% a.a.), calculada como média simples dos valores diários."
+
+  - name: fct_fundos_classe_mensal
+    description: >
+      Fluxos mensais de captação e resgate por classe de fundo CVM (Renda Fixa,
+      Multimercado, Ações, Cambial etc.). Revela para onde o dinheiro migra entre
+      classes de ativo ao longo do tempo. Fundos sem classificação recebem o rótulo
+      'Outros'; fundos sem correspondência no cadastro CVM recebem 'Sem cadastro'.
+    columns:
+      - name: mes
+        description: "Mês de referência (primeiro dia do mês, YYYY-MM-DD)."
+        tests: [not_null]
+      - name: classe
+        description: "Classe do fundo conforme cadastro CVM (ex.: 'Renda Fixa', 'Multimercado', 'Ações'). 'Outros' para classe em branco; 'Sem cadastro' para CNPJs sem registro."
+        tests: [not_null]
+      - name: n_fundos
+        description: "Número de fundos distintos com movimentação na classe no mês."
+      - name: captacao
+        description: "Total de captações (aplicações) na classe no mês (R$)."
+      - name: resgates
+        description: "Total de resgates na classe no mês (R$)."
+      - name: captacao_liquida
+        description: "Captação líquida na classe no mês (R$): captacao − resgates."
+
+  - name: fct_fundos_vs_cdi
+    description: >
+      Percentual de fundos de investimento cujo retorno acumulado em 12 meses
+      supera o CDI composto no mesmo período, em base mensal. Indicador
+      agregado de desempenho da indústria versus o benchmark de renda fixa.
+      Apenas meses com mais de 100 fundos com retorno calculável são incluídos.
+    columns:
+      - name: mes
+        description: "Mês de referência (último dia da janela de 12 meses). Chave do modelo."
+        tests: [not_null, unique]
+      - name: n_fundos
+        description: "Número de fundos com retorno de 12 meses calculável no mês."
+      - name: pct_acima_cdi
+        description: "Percentual de fundos cujo retorno 12m supera o CDI composto no mesmo período (0–100)."
+        tests:
+          - in_range:
+              min_value: 0
+              max_value: 100
+      - name: cdi_12m_pct
+        description: "CDI acumulado em 12 meses (%), calculado pelo produto das taxas diárias compostas."
+
+  - name: fct_ipca_aberturas
+    description: >
+      Variação do IPCA em 12 meses por grupo de despesa (alimentação, habitação,
+      saúde, transportes etc.), com rótulos limpos para visualização. A flag
+      'destaque' seleciona o IPCA-cheio mais os cinco grupos de maior peso na
+      cesta do consumidor, mantendo os gráficos legíveis sem perder o detalhe
+      total na camada de dados.
+    columns:
+      - name: mes
+        description: "Mês de referência do IPCA (primeiro dia do mês, YYYY-MM-DD)."
+        tests: [not_null]
+      - name: grupo_cod
+        description: "Código numérico do grupo de despesa no IBGE (ex.: 7169 = Alimentação e bebidas)."
+        tests: [not_null]
+      - name: grupo
+        description: "Nome do grupo de despesa por extenso (ex.: 'Alimentação e bebidas', 'Habitação')."
+      - name: var_12m
+        description: "Variação do IPCA acumulada em 12 meses para o grupo de despesa (%)."
+      - name: destaque
+        description: "Booleano: true para o IPCA-cheio e os cinco grupos de maior peso (usados nos gráficos principais do dashboard); false para os demais grupos."
+
+  - name: fct_fundos_pl_consolidado_mensal
+    description: >
+      Patrimônio líquido consolidado (líquido de fundos de fundos) da indústria
+      de fundos CVM, mês a mês. O informe diário da CVM soma o PL de todas as
+      classes, gerando dupla contagem quando um fundo feeder investe em cotas de
+      outro fundo do universo. Aqui subtrai-se exatamente esse montante (via
+      CDA BLC_2), obtendo uma cifra comparável ao dado ANBIMA (aproximadamente
+      R$10–11 tri versus ~R$13 tri bruto).
+    columns:
+      - name: mes
+        description: "Mês de referência como data (primeiro dia do mês, YYYY-MM-DD)."
+        tests: [not_null, unique]
+      - name: anomes
+        description: "Ano e mês de referência no formato YYYYMM (ex.: 202401)."
+      - name: pl_bruto
+        description: "Patrimônio líquido bruto da indústria no mês (R$): soma do PL de todos os fundos do universo CDA, sem dedução de dupla contagem."
+        tests: [non_negative]
+      - name: vl_cotas_universo
+        description: "Valor de mercado das cotas de fundos-alvo que estão dentro do próprio universo (R$): montante a ser subtraído para evitar a dupla contagem de fundos de fundos."
+      - name: pl_consolidado
+        description: "Patrimônio líquido consolidado da indústria (R$): pl_bruto − vl_cotas_universo. Comparável à metodologia ANBIMA."
+        meta:
+          om_glossario: "PL consolidado"
+        tests: [non_negative]
+      - name: n_fundos
+        description: "Número de fundos com PL positivo reportado no mês (universo CDA)."
+
+  - name: fct_fundos_cdi_classe_mensal
+    description: >
+      Percentual de fundos que superam o CDI em 12 meses, desagregado por
+      classe CVM (Renda Fixa, Multimercado, Ações, Cambial etc.), mês a mês.
+      Complementa o agregado de fct_fundos_vs_cdi revelando QUAIS tipos de fundo
+      tendem a bater o CDI e em quais condições de mercado. Apenas classes com
+      pelo menos 30 fundos com retorno calculável são incluídas, evitando
+      percentuais instáveis de classes com poucos fundos.
+    columns:
+      - name: mes
+        description: "Mês de referência da janela de 12 meses (primeiro dia do mês, YYYY-MM-DD)."
+      - name: classe
+        description: "Classe do fundo conforme cadastro CVM (ex.: 'Renda Fixa', 'Multimercado', 'Ações'). 'Outros' para fundos com classe em branco."
+      - name: n_fundos
+        description: "Número de fundos com retorno de 12 meses calculável na classe no mês (mínimo 30 para o registro existir)."
+      - name: pct_acima_cdi
+        description: "Percentual de fundos da classe cujo retorno em 12 meses supera o CDI composto no mesmo período (0–100, com uma casa decimal)."
+
+  - name: fct_fundos_top_cdi
+    description: >
+      Ranking dos fundos de investimento acessíveis ao público que mais superaram
+      o CDI no último período completo de 12 meses. Apenas fundos em funcionamento
+      normal com pelo menos 100 cotistas e patrimônio líquido mínimo de R$10 milhões
+      são incluídos — excluindo veículos exclusivos de um único investidor que
+      costumam dominar o topo, mas não estão disponíveis ao público geral. Retornos
+      acima de +100% são descartados como erros de cota. Nomes de colunas em
+      português natural para leitura direta na tabela do dashboard.
+    columns:
+      - name: Fundo
+        description: "Denominação social do fundo conforme cadastro CVM (razão social)."
+      - name: CNPJ
+        description: "CNPJ do fundo formatado no padrão 00.000.000/0001-00."
+      - name: Classe
+        description: "Classe do fundo conforme cadastro CVM (ex.: 'Renda Fixa', 'Multimercado'). 'Outros' quando não classificado."
+      - name: Cotistas
+        description: "Número de cotistas do fundo no último dia do período de 12 meses. Mínimo 100 para constar no ranking."
+      - name: "Rendimento 12 meses (%)"
+        description: "Retorno acumulado do fundo nos últimos 12 meses completos (%), calculado pela variação da cota do último dia de cada mês."
+      - name: "CDI 12 meses (%)"
+        description: "CDI acumulado no mesmo período de 12 meses (%), calculado pelo produto das taxas diárias."
+      - name: "Acima do CDI (p.p.)"
+        description: "Diferença entre o rendimento do fundo e o CDI no período (pontos percentuais): Rendimento 12m − CDI 12m. Ordenação decrescente por este campo."
+
+  - name: fct_pix_pessoa_mensal
+    description: >
+      Volume mensal de PIX pagos por estado e tipo de pagador (CPF = pessoa
+      física / CNPJ = pessoa jurídica), no formato longo. A fonte original do
+      BACEN mantém PF e PJ em colunas separadas; este mart pivota para formato
+      longo com a dimensão tipo_pessoa, permitindo que filtros nativos do
+      Superset (CPF/CNPJ) funcionem sem agregação adicional. É a tabela-base
+      de todos os gráficos PIX que respondem ao filtro de tipo de pessoa:
+      totais regionais, ticket médio, ranking per capita e projeção.
+    columns:
+      - name: mes
+        description: "Mês de referência (primeiro dia do mês, YYYY-MM-DD)."
+      - name: anomes
+        description: "Ano e mês de referência no formato YYYYMM (ex.: 202401)."
+        meta:
+          om_glossario: "anomes"
+      - name: estado_ibge
+        description: "Código IBGE numérico da UF (ex.: 35 = SP). O valor -1 identifica o bucket 'NÃO INFORMADO'."
+      - name: estado
+        description: "Nome da UF por extenso (ex.: 'São Paulo')."
+      - name: uf_iso
+        description: "Código ISO 3166-2 da UF no formato 'BR-XX' (ex.: 'BR-SP'), chave para o mapa do Brasil no Superset."
+      - name: sigla_regiao
+        description: "Sigla da macrorregião geográfica (N, NE, CO, SE, S)."
+      - name: regiao
+        description: "Nome da macrorregião geográfica por extenso (ex.: 'Sudeste')."
+      - name: tipo_pessoa
+        description: "Tipo de pagador: 'CPF (pessoa física)' ou 'CNPJ (pessoa jurídica)'."
+        meta:
+          om_glossario: "tipo_pessoa"
+      - name: vl_pago
+        description: "Valor total de PIX pagos pelo estado e tipo de pessoa no mês (R$)."
+      - name: qt_pago
+        description: "Quantidade de transações PIX pagas pelo estado e tipo de pessoa no mês."
+      - name: populacao
+        description: "Estimativa populacional da UF (IBGE). Usada como denominador nos cálculos per capita nos marts derivados."

@@ -1,0 +1,36 @@
+# OpenMetadata ingestion: warehouse metadata (raw / staging / marts).
+# Run with the OpenMetadata ingestion CLI after envsubst (see docs/openmetadata.md):
+#   envsubst < postgres-metadata.yaml | metadata ingest -c /dev/stdin
+source:
+  type: postgres
+  serviceName: brazil-economy-warehouse
+  serviceConnection:
+    config:
+      type: Postgres
+      # least privilege: a read-only role (SELECT on raw/staging/marts only),
+      # never the warehouse owner. Created by scripts/create_om_reader.sql.
+      username: om_reader
+      authType:
+        password: ${OM_READER_PASSWORD}
+      hostPort: postgres:5432
+      database: brazil_economy
+  sourceConfig:
+    config:
+      type: DatabaseMetadata
+      # the three warehouse layers; OM skips its own and Airflow/Superset DBs
+      schemaFilterPattern:
+        includes:
+          - "^raw$"
+          - "^staging$"
+          - "^marts$"
+      includeViews: true
+      includeTables: true
+sink:
+  type: metadata-rest
+  config: {}
+workflowConfig:
+  openMetadataServerConfig:
+    hostPort: http://openmetadata-server:8585/api
+    authProvider: openmetadata
+    securityConfig:
+      jwtToken: ${OM_INGESTION_JWT}

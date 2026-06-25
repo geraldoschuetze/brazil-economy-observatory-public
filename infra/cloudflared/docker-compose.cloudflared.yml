@@ -1,0 +1,21 @@
+# Cloudflare Tunnel connector. VM-level infra (one tunnel serves PROD+QA), so it
+# is its OWN compose project and is brought up once on the VM (Make target or the
+# PROD deploy, gated by the presence of the gitignored credentials file).
+#
+# host networking: the connector reaches each service via its loopback-published
+# host port (localhost:8088 / :8585 / :8089 / :8586) without joining either
+# stack's docker network.
+---
+services:
+  cloudflared:
+    image: cloudflare/cloudflared:2025.2.0
+    container_name: brazil-economy-cloudflared
+    command: tunnel --config /etc/cloudflared/config.yml run
+    network_mode: host
+    # run as root inside the container so it can read the 0600 (root/owner-only)
+    # credentials file — the connector only dials OUT to Cloudflare's edge.
+    user: "0:0"
+    volumes:
+      - ./config.yml:/etc/cloudflared/config.yml:ro
+      - ./creds/tunnel.json:/etc/cloudflared/tunnel.json:ro
+    restart: always

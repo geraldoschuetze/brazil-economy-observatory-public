@@ -1,0 +1,24 @@
+# OpenMetadata ingestion: dbt lineage + model descriptions.
+# Reads the artifacts emitted by the dbt_transform DAG (`dbt docs generate`),
+# giving OM column-level lineage raw -> staging -> marts and the model docs
+# defined in dbt schema.yml. Reuses the same serviceName as the metadata run.
+source:
+  type: dbt
+  serviceName: brazil-economy-warehouse
+  sourceConfig:
+    config:
+      type: DBT
+      dbtConfigSource:
+        dbtConfigType: local
+        dbtManifestFilePath: /opt/dbt/target/manifest.json
+        dbtCatalogFilePath: /opt/dbt/target/catalog.json
+        dbtRunResultsFilePath: /opt/dbt/target/run_results.json
+sink:
+  type: metadata-rest
+  config: {}
+workflowConfig:
+  openMetadataServerConfig:
+    hostPort: http://openmetadata-server:8585/api
+    authProvider: openmetadata
+    securityConfig:
+      jwtToken: ${OM_INGESTION_JWT}

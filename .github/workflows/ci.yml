@@ -1,0 +1,83 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Least privilege: CI only reads the repo.
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.12"
+      - name: Ruff (lint + format check)
+        run: |
+          pip install "ruff==0.15.18"
+          ruff check dags/ superset/ include/ tests/
+          ruff format --check dags/ superset/ include/ tests/
+
+  unit-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.12"
+      - name: Pytest (pure helpers + doctests)
+        run: |
+          pip install "pytest==8.3.4"
+          pytest -q
+
+  dbt-parse:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.12"
+      - name: dbt parse (validate models, refs, sources, tests)
+        working-directory: dbt
+        env:
+          DBT_PROFILES_DIR: ${{ github.workspace }}/dbt
+          BRAZIL_ECONOMY_DB_PASSWORD: ci-dummy  # parse never connects to the warehouse
+        run: |
+          pip install "dbt-postgres==1.9.0"
+          dbt parse
+
+  validate-dags:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - name: Import every DAG inside the Airflow image
+        run: |
+          # PYTHONPATH includes the dags folder too: DAGs import shared modules
+          # from it (e.g. brazil_economy_assets), which the scheduler resolves at
+          # parse time but a bare DagBag() in this check does not.
+          docker run --rm \
+            -v "$PWD/dags:/opt/airflow/dags" \
+            -v "$PWD/include:/opt/airflow/include" \
+            -e AIRFLOW__CORE__LOAD_EXAMPLES=False \
+            -e PYTHONPATH=/opt/airflow/include:/opt/airflow/dags \
+            apache/airflow:3.2.2 \
+            python -c "
+          from airflow.models import DagBag
+          bag = DagBag('/opt/airflow/dags', include_examples=False)
+          assert not bag.import_errors, bag.import_errors
+          print('DAGs OK:', sorted(bag.dag_ids))
+          "
+
+  compose-config:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - name: Validate docker-compose.yml
+        run: |
+          cp .env.example .env
+          docker compose config --quiet

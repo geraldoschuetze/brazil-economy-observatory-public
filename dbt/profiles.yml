@@ -1,0 +1,22 @@
+# dbt connection profile for the brazil_economy warehouse.
+#
+# Every field comes from the environment so the SAME profile works on a
+# developer laptop, in CI and on the production VM — only the env differs.
+# The Airflow containers already load .env (which holds BRAZIL_ECONOMY_DB_PASSWORD),
+# so dbt running inside Airflow inherits the credentials with no extra wiring.
+brazil_economy:
+  target: "{{ env_var('DBT_TARGET', 'prod') }}"
+  outputs:
+    prod:
+      type: postgres
+      host: "{{ env_var('BRAZIL_ECONOMY_DB_HOST', 'postgres') }}"
+      port: "{{ env_var('BRAZIL_ECONOMY_DB_PORT', '5432') | as_number }}"
+      user: "{{ env_var('BRAZIL_ECONOMY_DB_USER', 'brazil_economy') }}"
+      password: "{{ env_var('BRAZIL_ECONOMY_DB_PASSWORD') }}"
+      dbname: "{{ env_var('BRAZIL_ECONOMY_DB_NAME', 'brazil_economy') }}"
+      # default landing schema; the generate_schema_name macro routes models to
+      # bare `staging` / `marts` instead of dbt's default `<schema>_<custom>`
+      schema: marts
+      threads: 4
+      keepalives_idle: 0
+      connect_timeout: 30
