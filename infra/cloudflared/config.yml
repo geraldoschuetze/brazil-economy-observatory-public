@@ -1,0 +1,26 @@
+# Locally-managed Cloudflare Tunnel for the brazil-economy VM.
+# Committed on purpose: contains NO secrets — only the tunnel id (a public
+# identifier) and the hostname->loopback routing. The credentials file it
+# references is gitignored and lives on the VM only.
+#
+# One tunnel serves both PROD and QA (same VM, distinct loopback ports). The
+# connector runs host-networked, so `localhost:<port>` reaches each service's
+# loopback-published host port.
+#
+tunnel: 8a73717e-cf98-4da9-9101-bcde37b8513e
+credentials-file: /etc/cloudflared/tunnel.json
+
+# don't self-update inside the container; the image tag is pinned in compose
+no-autoupdate: true
+
+ingress:
+  - hostname: economy.geraldoschuetze.com           # PROD Superset (public dashboard)
+    service: http://localhost:8088
+  - hostname: economy-catalog.geraldoschuetze.com   # PROD OpenMetadata (read-only nginx proxy)
+    service: http://localhost:8585
+  - hostname: economy-qa.geraldoschuetze.com        # QA Superset
+    service: http://localhost:8089
+  - hostname: economy-qa-catalog.geraldoschuetze.com # QA OpenMetadata (read-only nginx proxy)
+    service: http://localhost:8586
+  # anything else gets a 404 from the connector (never reaches a backend)
+  - service: http_status:404

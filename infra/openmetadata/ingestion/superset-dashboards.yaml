@@ -1,0 +1,29 @@
+# OpenMetadata ingestion: Superset dashboards + charts, linked downstream of
+# the marts. Completes the lineage chain: raw -> staging -> marts -> dashboard.
+source:
+  type: superset
+  serviceName: brazil-economy-superset
+  serviceConnection:
+    config:
+      type: Superset
+      hostPort: http://superset:8088
+      connection:
+        # read dashboard/chart metadata straight from Superset's own DB
+        type: Postgres
+        username: superset
+        authType:
+          password: ${SUPERSET_DB_PASSWORD}
+        hostPort: postgres:5432
+        database: superset
+  sourceConfig:
+    config:
+      type: DashboardMetadata
+sink:
+  type: metadata-rest
+  config: {}
+workflowConfig:
+  openMetadataServerConfig:
+    hostPort: http://openmetadata-server:8585/api
+    authProvider: openmetadata
+    securityConfig:
+      jwtToken: ${OM_INGESTION_JWT}

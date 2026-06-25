@@ -1,0 +1,12 @@
+[tool.pytest.ini_options]
+# the shared helpers live in include/brazil_economy (also on PYTHONPATH inside Airflow);
+# expose them to pytest without installing the package
+pythonpath = ["include"]
+# include/brazil_economy is collected too so the helpers' doctests run as tests; dags/
+# are intentionally excluded (they import Airflow, unavailable in the unit env)
+testpaths = ["tests", "include/brazil_economy"]
+addopts = "--doctest-modules --strict-markers"
+
+[tool.ruff]
+target-version = "py312"
+extend-exclude = ["dbt/target", "dbt/dbt_packages"]

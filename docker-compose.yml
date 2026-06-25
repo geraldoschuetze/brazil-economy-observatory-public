@@ -1,0 +1,234 @@
+# brazil-economy-observatory — full stack: Airflow 3 (LocalExecutor) + PostgreSQL 16 + Superset
+#
+# Same file for DEV (laptop) and PROD (VM) — only .env changes between environments.
+#
+# Adapted from the official Airflow compose file
+# (https://airflow.apache.org/docs/apache-airflow/3.2.2/docker-compose.yaml):
+#   - CeleryExecutor -> LocalExecutor (single-host deployment; no Redis/workers/Flower)
+#   - one PostgreSQL instance hosting 3 databases: airflow (metadata),
+#     superset (metadata) and brazil_economy (the warehouse: raw/staging/marts)
+#   - Superset added as the public dashboard layer
+#
+# Secrets live in .env — generate it with `make env` (never committed).
+---
+x-airflow-common:
+  &airflow-common
+  # custom image = stock Airflow + dbt-postgres in an isolated venv (infra/airflow)
+  build:
+    context: ./infra/airflow
+    args:
+      AIRFLOW_IMAGE_NAME: ${AIRFLOW_IMAGE_NAME:-apache/airflow:3.2.2}
+  image: brazil-economy-airflow:${AIRFLOW_IMAGE_TAG:-3.2.2}
+  env_file:
+    - .env
+  environment:
+    &airflow-common-env
+    AIRFLOW__CORE__EXECUTOR: LocalExecutor
+    AIRFLOW__CORE__AUTH_MANAGER: airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager
+    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:${AIRFLOW_DB_PASSWORD}@postgres/airflow
+    AIRFLOW__CORE__FERNET_KEY: ${FERNET_KEY}
+    AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: 'true'
+    AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
+    AIRFLOW__CORE__DEFAULT_TIMEZONE: America/Sao_Paulo
+    AIRFLOW__CORE__EXECUTION_API_SERVER_URL: 'http://airflow-apiserver:8080/execution/'
+    AIRFLOW__API_AUTH__JWT_SECRET: ${AIRFLOW__API_AUTH__JWT_SECRET}
+    AIRFLOW__SCHEDULER__ENABLE_HEALTH_CHECK: 'true'
+    # Warehouse connection used by all ingestion/transform DAGs
+    AIRFLOW_CONN_BRAZIL_ECONOMY_WAREHOUSE: 'postgresql://brazil_economy:${BRAZIL_ECONOMY_DB_PASSWORD}@postgres:5432/brazil_economy'
+    AIRFLOW_CONFIG: '/opt/airflow/config/airflow.cfg'
+    # dbt (transform layer) reads its profile from the mounted project; the
+    # brazil_economy warehouse credentials come from .env (BRAZIL_ECONOMY_DB_PASSWORD)
+    DBT_PROFILES_DIR: /opt/airflow/dbt
+    # makes the shared `brazil_economy` helper package (include/brazil_economy) importable in DAGs
+    PYTHONPATH: /opt/airflow/include
+  volumes:
+    - ./dags:/opt/airflow/dags
+    - ./logs:/opt/airflow/logs
+    - ./config:/opt/airflow/config
+    - ./plugins:/opt/airflow/plugins
+    - ./include:/opt/airflow/include
+    - ./dbt:/opt/airflow/dbt
+  user: "${AIRFLOW_UID:-50000}:0"
+  depends_on:
+    &airflow-common-depends-on
+    postgres:
+      condition: service_healthy
+
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_SUPER_PASSWORD}
+      # consumed by infra/postgres/init/01-create-databases.sh on first boot only
+      AIRFLOW_DB_PASSWORD: ${AIRFLOW_DB_PASSWORD}
+      SUPERSET_DB_PASSWORD: ${SUPERSET_DB_PASSWORD}
+      BRAZIL_ECONOMY_DB_PASSWORD: ${BRAZIL_ECONOMY_DB_PASSWORD}
+    volumes:
+      - postgres-db-volume:/var/lib/postgresql/data
+      - ./infra/postgres/init:/docker-entrypoint-initdb.d:ro
+    ports:
+      # loopback only: local debugging, never exposed externally
+      - "127.0.0.1:${POSTGRES_HOST_PORT:-5440}:5432"
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "postgres"]
+      interval: 10s
+      retries: 5
+      start_period: 5s
+    restart: always
+
+  airflow-apiserver:
+    <<: *airflow-common
+    command: api-server
+    ports:
+      # loopback only: the Airflow control plane (trigger DAGs, Variables,
+      # connections) must NOT be internet-facing — reach it via SSH tunnel
+      # (ssh -L 8080:localhost:8080). Only Superset (8088) is public.
+      - "127.0.0.1:${AIRFLOW_PORT:-8080}:8080"
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8080/api/v2/monitor/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    restart: always
+    depends_on:
+      <<: *airflow-common-depends-on
+      airflow-init:
+        condition: service_completed_successfully
+
+  airflow-scheduler:
+    <<: *airflow-common
+    command: scheduler
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8974/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    restart: always
+    depends_on:
+      <<: *airflow-common-depends-on
+      airflow-init:
+        condition: service_completed_successfully
+
+  airflow-dag-processor:
+    <<: *airflow-common
+    command: dag-processor
+    healthcheck:
+      test: ["CMD-SHELL", 'airflow jobs check --job-type DagProcessorJob --hostname "$${HOSTNAME}"']
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    restart: always
+    depends_on:
+      <<: *airflow-common-depends-on
+      airflow-init:
+        condition: service_completed_successfully
+
+  airflow-triggerer:
+    <<: *airflow-common
+    command: triggerer
+    healthcheck:
+      test: ["CMD-SHELL", 'airflow jobs check --job-type TriggererJob --hostname "$${HOSTNAME}"']
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    restart: always
+    depends_on:
+      <<: *airflow-common-depends-on
+      airflow-init:
+        condition: service_completed_successfully
+
+  airflow-init:
+    <<: *airflow-common
+    entrypoint: /bin/bash
+    command:
+      - -c
+      - |
+        mkdir -v -p /opt/airflow/{logs,dags,plugins,config}
+        chown -R "${AIRFLOW_UID}:0" /opt/airflow/{logs,dags,plugins,config}
+        /entrypoint airflow config list >/dev/null
+        echo "Airflow init done."
+    environment:
+      <<: *airflow-common-env
+      _AIRFLOW_DB_MIGRATE: 'true'
+      _AIRFLOW_WWW_USER_CREATE: 'true'
+      _AIRFLOW_WWW_USER_USERNAME: ${_AIRFLOW_WWW_USER_USERNAME:-admin}
+      _AIRFLOW_WWW_USER_PASSWORD: ${_AIRFLOW_WWW_USER_PASSWORD}
+    user: "0:0"
+
+  airflow-cli:
+    <<: *airflow-common
+    profiles:
+      - debug
+    environment:
+      <<: *airflow-common-env
+      CONNECTION_CHECK_MAX_COUNT: "0"
+    command:
+      - bash
+      - -c
+      - airflow
+    depends_on:
+      <<: *airflow-common-depends-on
+
+  superset:
+    build:
+      context: ./infra/superset
+      args:
+        SUPERSET_IMAGE_TAG: ${SUPERSET_IMAGE_TAG:-6.1.0}
+    image: brazil-economy-superset:${SUPERSET_IMAGE_TAG:-6.1.0}
+    environment:
+      &superset-env
+      SUPERSET_CONFIG_PATH: /app/superset_config.py
+      SUPERSET_SECRET_KEY: ${SUPERSET_SECRET_KEY}
+      SUPERSET_DB_PASSWORD: ${SUPERSET_DB_PASSWORD}
+      BRAZIL_ECONOMY_DB_PASSWORD: ${BRAZIL_ECONOMY_DB_PASSWORD}
+    volumes:
+      - ./infra/superset/superset_config.py:/app/superset_config.py:ro
+      - superset-home:/app/superset_home
+    ports:
+      # loopback only — the public surface is the Cloudflare Tunnel
+      # (economy.geraldoschuetze.com). Local dev still reaches it at
+      # http://localhost:8088.
+      - "127.0.0.1:${SUPERSET_PORT:-8088}:8088"
+    restart: always
+    depends_on:
+      postgres:
+        condition: service_healthy
+      superset-init:
+        condition: service_completed_successfully
+
+  superset-init:
+    build:
+      context: ./infra/superset
+      args:
+        SUPERSET_IMAGE_TAG: ${SUPERSET_IMAGE_TAG:-6.1.0}
+    image: brazil-economy-superset:${SUPERSET_IMAGE_TAG:-6.1.0}
+    environment:
+      <<: *superset-env
+      SUPERSET_ADMIN_USERNAME: ${SUPERSET_ADMIN_USERNAME:-admin}
+      SUPERSET_ADMIN_PASSWORD: ${SUPERSET_ADMIN_PASSWORD}
+    volumes:
+      - ./infra/superset/superset_config.py:/app/superset_config.py:ro
+      - superset-home:/app/superset_home
+    entrypoint: /bin/bash
+    command:
+      - -c
+      - |
+        superset db upgrade
+        superset fab create-admin \
+          --username "$${SUPERSET_ADMIN_USERNAME}" \
+          --firstname Admin --lastname "Brazil Economy" \
+          --email admin@brazil_economy.local \
+          --password "$${SUPERSET_ADMIN_PASSWORD}" || true
+        superset init
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  postgres-db-volume:
+  superset-home:

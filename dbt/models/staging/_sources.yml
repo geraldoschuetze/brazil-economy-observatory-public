@@ -1,0 +1,331 @@
+version: 2
+
+sources:
+  - name: raw
+    description: >
+      Zona de pouso imutável. Cada tabela é gravada por uma DAG de ingestão do
+      Airflow diretamente de uma API pública governamental (BACEN, CVM, IBGE) e
+      nunca é alterada pelo dbt. O campo `loaded_at` viabiliza o monitoramento
+      de frescor das fontes.
+    schema: raw
+    loaded_at_field: loaded_at
+    # SLA padrão: a maioria das fontes atualiza diariamente; alerta após ~1,5 dia
+    # sem novos dados, erro após ~4 dias. Fontes mais lentas sobrescrevem abaixo.
+    freshness:
+      warn_after: { count: 36, period: hour }
+      error_after: { count: 96, period: hour }
+    tables:
+      - name: sgs_observations
+        description: >
+          Observações brutas das séries temporais do SGS/BACEN (Sistema Gerenciador
+          de Séries Temporais), uma linha por série e data. Cobre indicadores macro
+          como Selic, IPCA, câmbio, resultado fiscal e atividade econômica.
+        columns:
+          - name: series_code
+            description: >
+              Código numérico da série no SGS (ex.: 432 = Selic meta,
+              13522 = IPCA acumulado 12 meses, 1 = taxa de câmbio USD/BRL).
+          - name: obs_date
+            description: "Data de referência da observação da série (YYYY-MM-DD)."
+          - name: value
+            description: >
+              Valor observado na data, entregue pela API como texto com vírgula
+              decimal (ex.: '13,75'). Convertido para numérico na camada staging.
+          - name: loaded_at
+            description: "Carimbo de data/hora UTC em que a linha foi ingerida pelo Airflow."
+
+      - name: pix_transacoes_municipio
+        description: >
+          Transações Pix por município, consolidadas mensalmente pelo BACEN
+          (plataforma Olinda). Inclui valores e quantidades de transações
+          discriminados por tipo de pagador/recebedor (PF e PJ), além de
+          estatísticas de pessoas únicas. O código IBGE -1 identifica o bucket
+          "NÃO INFORMADO" do BACEN — transações não atribuíveis a um município
+          específico; mantido para que os totais nacionais estejam corretos.
+        columns:
+          - name: anomes
+            description: >
+              Ano e mês de referência das transações no formato YYYYMM
+              (ex.: 202401 = janeiro de 2024).
+          - name: municipio_ibge
+            description: >
+              Código IBGE de 7 dígitos do município. O valor -1 identifica o
+              bucket "NÃO INFORMADO" (transações sem município atribuído).
+          - name: municipio
+            description: "Nome do município conforme cadastro IBGE."
+          - name: estado_ibge
+            description: >
+              Código IBGE numérico da UF (ex.: 35 = SP). O valor -1 acompanha
+              o bucket "NÃO INFORMADO".
+          - name: estado
+            description: "Nome completo da unidade federativa."
+          - name: sigla_regiao
+            description: >
+              Sigla da grande região geográfica (N, NE, CO, SE, S).
+          - name: regiao
+            description: "Nome da grande região geográfica (ex.: Sudeste)."
+          - name: vl_pagador_pf
+            description: >
+              Valor total (R$) das transações Pix em que o pagador é uma
+              pessoa física, no mês e município.
+          - name: qt_pagador_pf
+            description: >
+              Quantidade de transações Pix em que o pagador é uma pessoa
+              física, no mês e município.
+          - name: vl_pagador_pj
+            description: >
+              Valor total (R$) das transações Pix em que o pagador é uma
+              pessoa jurídica, no mês e município.
+          - name: qt_pagador_pj
+            description: >
+              Quantidade de transações Pix em que o pagador é uma pessoa
+              jurídica, no mês e município.
+          - name: vl_recebedor_pf
+            description: >
+              Valor total (R$) das transações Pix em que o recebedor é uma
+              pessoa física, no mês e município.
+          - name: qt_recebedor_pf
+            description: >
+              Quantidade de transações Pix em que o recebedor é uma pessoa
+              física, no mês e município.
+          - name: vl_recebedor_pj
+            description: >
+              Valor total (R$) das transações Pix em que o recebedor é uma
+              pessoa jurídica, no mês e município.
+          - name: qt_recebedor_pj
+            description: >
+              Quantidade de transações Pix em que o recebedor é uma pessoa
+              jurídica, no mês e município.
+          - name: qt_pes_pagador_pf
+            description: >
+              Número de pessoas físicas únicas que realizaram ao menos um
+              pagamento Pix no mês e município.
+          - name: qt_pes_pagador_pj
+            description: >
+              Número de pessoas jurídicas únicas que realizaram ao menos um
+              pagamento Pix no mês e município.
+          - name: qt_pes_recebedor_pf
+            description: >
+              Número de pessoas físicas únicas que receberam ao menos uma
+              transação Pix no mês e município.
+          - name: qt_pes_recebedor_pj
+            description: >
+              Número de pessoas jurídicas únicas que receberam ao menos uma
+              transação Pix no mês e município.
+          - name: loaded_at
+            description: "Carimbo de data/hora UTC em que a linha foi ingerida pelo Airflow."
+
+      - name: cvm_inf_diario
+        description: >
+          Informe diário de fundos de investimento, publicado pela CVM (Comissão
+          de Valores Mobiliários). Contém dados de patrimônio líquido, valor da
+          cota, captações, resgates e número de cotistas por fundo e data de
+          competência. Cada linha representa um fundo em um dia.
+        columns:
+          - name: cnpj
+            description: >
+              CNPJ do fundo no formato com pontuação (ex.: 12.345.678/0001-90),
+              conforme entregue pela CVM.
+          - name: id_subclasse
+            description: >
+              Identificador de subclasse do fundo conforme o novo enquadramento
+              CVM-175 (resolução de 2023). Nulo para fundos no regime anterior.
+          - name: dt_comptc
+            description: "Data de competência do informe (data de referência dos valores)."
+          - name: tp_fundo
+            description: >
+              Tipo/regime regulatório do fundo: 'FI' para o regime anterior à
+              CVM-175 ou 'FIF' para o regime novo (Fundo de Investimento
+              Financeiro pós-CVM-175).
+          - name: vl_total
+            description: "Valor total da carteira do fundo em R$ na data de competência."
+          - name: vl_quota
+            description: "Valor da cota do fundo em R$ na data de competência."
+          - name: vl_patrim_liq
+            description: "Patrimônio líquido do fundo em R$ na data de competência."
+          - name: captc_dia
+            description: "Total de captações (aplicações) recebidas pelo fundo no dia, em R$."
+          - name: resg_dia
+            description: "Total de resgates pagos pelo fundo no dia, em R$."
+          - name: nr_cotst
+            description: "Número de cotistas do fundo na data de competência."
+          - name: loaded_at
+            description: "Carimbo de data/hora UTC em que a linha foi ingerida pelo Airflow."
+
+      - name: cvm_cad_fi
+        description: >
+          Cadastro de fundos de investimento da CVM (dimensão, carga completa).
+          Contém dados cadastrais de todos os fundos registrados — nome, situação,
+          classe regulatória, gestor e administrador. Atualizado integralmente a
+          cada execução; muda lentamente.
+        # cadastro é reconstruído a cada execução, mas muda devagar
+        freshness:
+          warn_after: { count: 48, period: hour }
+          error_after: { count: 168, period: hour }
+        columns:
+          - name: cnpj
+            description: >
+              CNPJ do fundo normalizado para somente dígitos (14 caracteres),
+              sem pontuação. Chave de junção com o informe diário e a CDA.
+          - name: denom_social
+            description: "Denominação social (razão social) do fundo de investimento."
+          - name: sit
+            description: >
+              Situação cadastral do fundo perante a CVM
+              (ex.: 'EM FUNCIONAMENTO NORMAL', 'CANCELADA', 'EM LIQUIDAÇÃO').
+          - name: classe
+            description: >
+              Classe regulatória do fundo (ex.: 'Fundo de Ações',
+              'Fundo de Renda Fixa', 'Fundo Multimercado').
+          - name: gestor
+            description: "Nome do gestor responsável pela administração da carteira do fundo."
+          - name: administrador
+            description: "Nome do administrador fiduciário do fundo."
+          - name: loaded_at
+            description: "Carimbo de data/hora UTC em que a linha foi ingerida pelo Airflow."
+
+      - name: dim_populacao_uf
+        description: >
+          Estimativas populacionais por unidade federativa do IBGE, usadas como
+          denominador para cálculos per capita nos marts de Pix. Atualizado
+          anualmente com defasagem; a tabela é pequena (27 UFs × anos disponíveis).
+        freshness:
+          warn_after: { count: 168, period: hour }
+          error_after: { count: 720, period: hour }
+        columns:
+          - name: uf_ibge
+            description: >
+              Código IBGE numérico da unidade federativa (ex.: 35 = São Paulo,
+              33 = Rio de Janeiro).
+          - name: uf
+            description: "Sigla de duas letras da unidade federativa (ex.: SP, RJ, MG)."
+          - name: populacao
+            description: "Estimativa populacional da UF no ano de referência (número de habitantes)."
+          - name: ano
+            description: "Ano de referência da estimativa populacional (ex.: 2022, 2023)."
+          - name: loaded_at
+            description: "Carimbo de data/hora UTC em que a linha foi ingerida pelo Airflow."
+
+      - name: focus_expectativas
+        description: >
+          Expectativas medianas do mercado coletadas na pesquisa Focus do BACEN,
+          publicadas semanalmente (às segundas-feiras). Cada linha representa a
+          mediana das projeções de um conjunto de instituições financeiras para
+          um indicador e uma data de referência futura.
+        # Focus publica às segundas-feiras — tolera uma semana inteira entre cargas
+        freshness:
+          warn_after: { count: 8, period: day }
+          error_after: { count: 14, period: day }
+        columns:
+          - name: indicador
+            description: >
+              Nome do indicador projetado (ex.: 'IPCA', 'Selic', 'PIB Total',
+              'Taxa de câmbio').
+          - name: data
+            description: "Data de divulgação da pesquisa Focus (data da coleta das expectativas)."
+          - name: data_referencia
+            description: >
+              Período futuro ao qual a expectativa se refere, podendo ser um
+              ano (ex.: '2024') ou mês/ano (ex.: '12/2024') dependendo do
+              indicador.
+          - name: mediana
+            description: >
+              Mediana das projeções das instituições participantes para o
+              indicador e data de referência, na unidade nativa do indicador
+              (% a.a. para Selic e IPCA, R$/US$ para câmbio, % para PIB etc.).
+          - name: respondentes
+            description: >
+              Número de instituições financeiras que responderam à pesquisa
+              para esse indicador e data de referência específicos.
+          - name: loaded_at
+            description: "Carimbo de data/hora UTC em que a linha foi ingerida pelo Airflow."
+
+      - name: ipca_aberturas
+        description: >
+          Variação do IPCA acumulada em 12 meses por grupo de despesa,
+          extraída da SIDRA/IBGE (tabela 7060). Permite decompor a inflação
+          por grupos como alimentação, habitação, saúde, transportes etc.
+          Frequência mensal com defasagem de publicação de cerca de um mês.
+        freshness:
+          warn_after: { count: 35, period: day }
+          error_after: { count: 45, period: day }
+        columns:
+          - name: mes
+            description: >
+              Mês de referência da variação do IPCA no formato YYYY-MM-DD
+              (primeiro dia do mês).
+          - name: grupo_cod
+            description: >
+              Código numérico do grupo de despesa no IPCA conforme classificação
+              do IBGE (ex.: 1 = Alimentação e bebidas, 2 = Habitação).
+          - name: grupo
+            description: >
+              Descrição do grupo de despesa com prefixo numérico incluído
+              (ex.: '1.Alimentação e bebidas'). A camada staging remove o
+              prefixo numérico para fins de exibição.
+          - name: var_12m
+            description: >
+              Variação acumulada do IPCA nos últimos 12 meses para o grupo,
+              em pontos percentuais (ex.: 4,62 representa 4,62% a.a.).
+          - name: loaded_at
+            description: "Carimbo de data/hora UTC em que a linha foi ingerida pelo Airflow."
+
+      - name: cvm_cda_pl
+        description: >
+          Patrimônio líquido mensal por fundo/classe, extraído da CDA (Composição
+          e Diversificação das Aplicações) da CVM — arquivo BLC_1. Usado para
+          calcular o PL consolidado da indústria de fundos, com desconto das
+          posições em cotas de outros fundos para evitar dupla contagem.
+          Publicação mensal com defasagem de cerca de 45 dias.
+        # CDA é mensal com defasagem de publicação — tolera bem mais de um mês
+        freshness:
+          warn_after: { count: 50, period: day }
+          error_after: { count: 75, period: day }
+        columns:
+          - name: anomes
+            description: >
+              Ano e mês de competência do demonstrativo no formato YYYYMM
+              (ex.: 202312 = dezembro de 2023).
+          - name: cnpj
+            description: >
+              CNPJ do fundo no formato com pontuação, conforme entregue pela CVM.
+              Normalizado para somente dígitos na camada staging.
+          - name: vl_patrim_liq
+            description: >
+              Patrimônio líquido declarado do fundo no mês, em R$. Valores
+              superiores a R$ 1 trilhão são descartados na staging como proteção
+              contra registros corrompidos (nenhum fundo brasileiro real se
+              aproxima desse patamar).
+          - name: loaded_at
+            description: "Carimbo de data/hora UTC em que a linha foi ingerida pelo Airflow."
+
+      - name: cvm_cda_cotas
+        description: >
+          Posições em cotas de outros fundos (arquivo BLC_2 da CDA/CVM), usadas
+          para calcular o PL líquido consolidado da indústria sem dupla contagem.
+          Cada linha representa a posição de um fundo investidor (cnpj_investidor)
+          em cotas de um fundo investido (cnpj_investido) ao final do mês.
+        freshness:
+          warn_after: { count: 50, period: day }
+          error_after: { count: 75, period: day }
+        columns:
+          - name: anomes
+            description: >
+              Ano e mês de competência da posição no formato YYYYMM
+              (ex.: 202312 = dezembro de 2023).
+          - name: cnpj_investidor
+            description: >
+              CNPJ do fundo que detém a posição em cotas (fundo investidor),
+              no formato com pontuação conforme entregue pela CVM.
+          - name: cnpj_investido
+            description: >
+              CNPJ do fundo cujas cotas são detidas (fundo investido), no
+              formato com pontuação. Nulo quando o fundo investido não é
+              identificável na base CVM.
+          - name: vl_mercado
+            description: >
+              Valor de mercado da posição em cotas do fundo investido, em R$,
+              no mês de referência. Valores superiores a R$ 1 trilhão são
+              descartados na staging como proteção contra registros corrompidos.
+          - name: loaded_at
+            description: "Carimbo de data/hora UTC em que a linha foi ingerida pelo Airflow."

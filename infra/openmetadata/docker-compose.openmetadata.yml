@@ -1,0 +1,204 @@
+# OpenMetadata — governance/catalog stack, adapted from the official
+# docker-compose-postgres.yml (pinned ${OPENMETADATA_VERSION}) for this project's
+# CI/CD (dev → qa → prod). Differences from upstream:
+#   - NO host port bindings except the UI (8585) on LOOPBACK — avoids clashing
+#     with the main stack's Airflow/Superset/Postgres on the same VM;
+#   - the server + ingestion also join the MAIN STACK network (external) so
+#     ingestion can resolve the warehouse `postgres` and `superset` hosts;
+#   - per-environment via .env: OM_PORT, heap sizes, the warehouse network name
+#     (`${OM_WAREHOUSE_NETWORK}` = "<COMPOSE_PROJECT_NAME>_default").
+#
+# Brought up by the same flow as the rest of the stack — see the `om-up` Make
+# target and the Deploy workflow (gated by OM_ENABLED). Secrets live in
+# infra/openmetadata/openmetadata.env (gitignored; copy the .example).
+---
+volumes:
+  om-postgres-data:
+  om-es-data:
+  om-ingestion-dags:
+  om-ingestion-configs:
+  om-ingestion-tmp:
+
+networks:
+  om_net:
+    name: ${COMPOSE_PROJECT_NAME:-brazil-economy-observatory}_om
+  warehouse:
+    name: ${OM_WAREHOUSE_NETWORK:-brazil-economy-observatory_default}
+    external: true
+
+x-om-common-env: &om-common-env
+  OPENMETADATA_CLUSTER_NAME: ${OPENMETADATA_CLUSTER_NAME:-openmetadata}
+  AUTHENTICATION_PROVIDER: basic
+  # signup is used internally (over the loopback port) to provision the
+  # read-only viewer with a known password; the public nginx proxy blocks the
+  # signup endpoint, so enabling it does not create a public registration path.
+  AUTHENTICATION_ENABLE_SELF_SIGNUP: ${OM_ENABLE_SIGNUP:-false}
+  AUTHORIZER_ADMIN_PRINCIPALS: ${AUTHORIZER_ADMIN_PRINCIPALS:-[admin]}
+  AUTHORIZER_PRINCIPAL_DOMAIN: ${AUTHORIZER_PRINCIPAL_DOMAIN:-open-metadata.org}
+  # JWT signing keys. These paths are mounted over with VM-local generated keys
+  # (scripts/om_gen_jwt_keys.sh — see the openmetadata-server volumes); the
+  # image's demo keys are not used. Pair with a fresh per-env JWT_KEY_ID.
+  RSA_PUBLIC_KEY_FILE_PATH: ./conf/public_key.der
+  RSA_PRIVATE_KEY_FILE_PATH: ./conf/private_key.der
+  JWT_ISSUER: open-metadata.org
+  JWT_KEY_ID: ${JWT_KEY_ID:-Gb389a-9f76-gdjs-a92j-0242bk94356}
+  # metadata DB (the om-postgresql service)
+  DB_DRIVER_CLASS: org.postgresql.Driver
+  DB_SCHEME: postgresql
+  DB_PARAMS: allowPublicKeyRetrieval=true&useSSL=false&serverTimezone=UTC
+  DB_HOST: om-postgresql
+  DB_PORT: "5432"
+  DB_USER: ${OM_DB_USER:-openmetadata_user}
+  # internal OM metadata DB (no host port; the openmetadata/postgresql image
+  # bakes these users) — default matches upstream, override only if you also
+  # rebuild the init. Not an internet-facing credential.
+  DB_USER_PASSWORD: ${OM_DB_PASSWORD:-openmetadata_password}
+  OM_DATABASE: ${OM_DATABASE:-openmetadata_db}
+  # search
+  SEARCH_TYPE: elasticsearch
+  ELASTICSEARCH_HOST: om-elasticsearch
+  ELASTICSEARCH_PORT: "9200"
+  ELASTICSEARCH_SCHEME: http
+  # pipeline service client = the bundled ingestion Airflow
+  PIPELINE_SERVICE_CLIENT_ENABLED: "true"
+  PIPELINE_SERVICE_CLIENT_ENDPOINT: http://om-ingestion:8080
+  SERVER_HOST_API_URL: http://openmetadata-server:8585/api
+  # SECURITY (finding M4): the values below are DEV-ONLY fallbacks so the stack
+  # boots out of the box. In QA/PROD you MUST override them in openmetadata.env —
+  # especially OM_FERNET_KEY (encrypts OM's stored connection secrets; the literal
+  # default is committed, so generate a UNIQUE key per env and ROTATE this one).
+  # These services have no host port (loopback/internal only), which limits but
+  # does not eliminate the risk.
+  AIRFLOW_USERNAME: ${OM_AIRFLOW_USERNAME:-admin}
+  AIRFLOW_PASSWORD: ${OM_AIRFLOW_PASSWORD:-admin}
+  FERNET_KEY: ${OM_FERNET_KEY:-jJ/9sz0g0OHxsfxOoSfdFdmk3ysNmPRnH3TUAbz3IHA=}
+  OPENMETADATA_HEAP_OPTS: ${OM_HEAP_OPTS:--Xmx1G -Xms1G}
+
+services:
+  om-postgresql:
+    container_name: ${COMPOSE_PROJECT_NAME:-brazil-economy-observatory}-om-postgresql
+    image: docker.getcollate.io/openmetadata/postgresql:${OPENMETADATA_VERSION:-1.12.11}
+    command: "--work_mem=10MB"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${OM_POSTGRES_SUPER_PASSWORD:-password}
+    volumes:
+      - om-postgres-data:/var/lib/postgresql/data
+    networks: [om_net]
+    healthcheck:
+      test: psql -U postgres -tAc 'select 1' -d openmetadata_db
+      interval: 15s
+      timeout: 10s
+      retries: 10
+    restart: always
+
+  om-elasticsearch:
+    container_name: ${COMPOSE_PROJECT_NAME:-brazil-economy-observatory}-om-elasticsearch
+    image: docker.elastic.co/elasticsearch/elasticsearch:9.3.0
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=${OM_ES_JAVA_OPTS:--Xms1024m -Xmx1024m}
+    volumes:
+      - om-es-data:/usr/share/elasticsearch/data
+    networks: [om_net]
+    healthcheck:
+      test: "curl -s http://localhost:9200/_cluster/health?pretty | grep -qE 'green|yellow' || exit 1"
+      interval: 20s
+      timeout: 10s
+      retries: 12
+    restart: always
+
+  om-migrate:
+    container_name: ${COMPOSE_PROJECT_NAME:-brazil-economy-observatory}-om-migrate
+    image: docker.getcollate.io/openmetadata/server:${OPENMETADATA_VERSION:-1.12.11}
+    command: "./bootstrap/openmetadata-ops.sh migrate"
+    environment: *om-common-env
+    depends_on:
+      om-elasticsearch:
+        condition: service_healthy
+      om-postgresql:
+        condition: service_healthy
+    networks: [om_net]
+    restart: on-failure
+
+  openmetadata-server:
+    container_name: ${COMPOSE_PROJECT_NAME:-brazil-economy-observatory}-om-server
+    image: docker.getcollate.io/openmetadata/server:${OPENMETADATA_VERSION:-1.12.11}
+    environment: *om-common-env
+    volumes:
+      # Replace the bundled demo signing keys with VM-local generated keys
+      # (scripts/om_gen_jwt_keys.sh). The files are gitignored — present on the
+      # VM only. Paths match RSA_PUBLIC_KEY_FILE_PATH/RSA_PRIVATE_KEY_FILE_PATH
+      # (./conf/... resolves to /opt/openmetadata/conf/...).
+      - ./certs/public_key.der:/opt/openmetadata/conf/public_key.der:ro
+      - ./certs/private_key.der:/opt/openmetadata/conf/private_key.der:ro
+    ports:
+      # loopback only — admin via SSH tunnel; public read access flows through
+      # the Cloudflare Tunnel -> om-proxy (read-only), never this port. Default
+      # is 8597 (distinct from the proxy's 8585) so the tunnel can never land on
+      # this full read/write server port by accident — see om-proxy below.
+      - "127.0.0.1:${OM_PORT:-8597}:8585"
+    depends_on:
+      om-migrate:
+        condition: service_completed_successfully
+    networks: [om_net, warehouse]
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8586/healthcheck"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 90s
+    restart: always
+
+  om-ingestion:
+    container_name: ${COMPOSE_PROJECT_NAME:-brazil-economy-observatory}-om-ingestion
+    image: docker.getcollate.io/openmetadata/ingestion:${OPENMETADATA_VERSION:-1.12.11}
+    environment:
+      AIRFLOW__API__AUTH_BACKENDS: "airflow.api.auth.backend.basic_auth,airflow.api.auth.backend.session"
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__OPENMETADATA_AIRFLOW_APIS__DAG_GENERATED_CONFIGS: "/opt/airflow/dag_generated_configs"
+      DB_HOST: om-postgresql
+      DB_PORT: "5432"
+      AIRFLOW_DB: airflow_db
+      DB_USER: ${OM_AIRFLOW_DB_USER:-airflow_user}
+      DB_SCHEME: postgresql+psycopg2
+      DB_PASSWORD: ${OM_AIRFLOW_DB_PASSWORD:-airflow_pass}
+    entrypoint: /bin/bash
+    command: ["/opt/airflow/ingestion_dependency.sh"]
+    depends_on:
+      om-postgresql:
+        condition: service_healthy
+      openmetadata-server:
+        condition: service_started
+    networks: [om_net, warehouse]
+    volumes:
+      - om-ingestion-configs:/opt/airflow/dag_generated_configs
+      - om-ingestion-dags:/opt/airflow/dags
+      - om-ingestion-tmp:/tmp
+      # artefatos do dbt (manifest/catalog/run_results) que o conector dbt lê.
+      # /opt/airflow/dbt no main stack é bind do host (<repo>/dbt), então o
+      # target já está no host; aqui montamos só-leitura. OM_DBT_TARGET_HOST =
+      # caminho ABSOLUTO de <repo>/dbt/target na VM (definido no openmetadata.env).
+      - ${OM_DBT_TARGET_HOST:?defina OM_DBT_TARGET_HOST no openmetadata.env}:/opt/dbt/target:ro
+    restart: always
+
+  # read-only public surface: GET/HEAD + viewer login only (writes -> 403).
+  # Bound to loopback by default; set OM_PUBLIC_BIND=0.0.0.0 (+ firewall) to
+  # publish the shared-viewer link. The server's own port stays internal.
+  # IMPORTANT: OM_PUBLIC_PORT MUST equal the port the Cloudflare Tunnel routes
+  # the catalog hostname to (PROD 8585, QA 8586 — see infra/cloudflared/config.yml).
+  # The default 8585 matches PROD so the tunnel lands on THIS read-only proxy,
+  # never the full server port (OM_PORT, default 8597).
+  om-proxy:
+    container_name: ${COMPOSE_PROJECT_NAME:-brazil-economy-observatory}-om-proxy
+    image: nginx:1.27-alpine
+    volumes:
+      - ./nginx-readonly.conf:/etc/nginx/conf.d/default.conf:ro
+    ports:
+      - "${OM_PUBLIC_BIND:-127.0.0.1}:${OM_PUBLIC_PORT:-8585}:8585"
+    depends_on:
+      openmetadata-server:
+        condition: service_started
+    networks: [om_net]
+    restart: always

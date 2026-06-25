@@ -1,0 +1,2 @@
+# Shared, non-DAG modules in this folder — skip DAG parsing for them.
+brazil_economy_assets.py

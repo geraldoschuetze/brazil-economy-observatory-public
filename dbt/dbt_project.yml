@@ -1,0 +1,27 @@
+name: "brazil_economy"
+version: "1.0.0"
+config-version: 2
+profile: "brazil_economy"
+
+# The Airflow DAGs land immutable data in the `raw` schema; dbt owns everything
+# downstream — `staging` (typed, conformed views) and `marts` (the star schema
+# Superset reads). Keeping raw out of dbt preserves the clean handoff between
+# orchestration (Airflow) and transformation (dbt).
+model-paths: ["models"]
+macro-paths: ["macros"]
+test-paths: ["tests"]
+target-path: "target"
+clean-targets: ["target", "dbt_packages"]
+
+flags:
+  send_anonymous_usage_stats: false
+  use_colors: true
+
+models:
+  brazil_economy:
+    staging:
+      +schema: staging
+      +materialized: view
+    marts:
+      +schema: marts
+      +materialized: table
