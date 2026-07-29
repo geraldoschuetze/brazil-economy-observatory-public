@@ -47,36 +47,10 @@ Login do viewer somente-leitura do OpenMetadata:
 
 ## Arquitetura — três ambientes com promoção automatizada
 
-```mermaid
-flowchart TB
-    DEV["💻 DEV — máquina do desenvolvedor<br/>Docker Compose: Airflow 3 · PostgreSQL 16 · Superset"]
-
-    subgraph GH["GitHub — CI/CD (GitHub Actions)"]
-        direction LR
-        CI["CI: lint ruff + validação das DAGs"]
-        CD["CD: deploy via SSH"]
-    end
-
-    subgraph ORACLE["☁️ Oracle Cloud — VM ARM Always Free, 24/7"]
-        direction TB
-        subgraph QA["🧪 QA — branch develop (portas 8081/8089)"]
-            QAS["Airflow · PostgreSQL · Superset"]
-        end
-        subgraph PROD["🚀 PROD — branch main (portas 8080/8088)"]
-            AF["Airflow 3<br/>DAGs de ingestão"] -->|"raw"| PG[("PostgreSQL 16")]
-            AF -->|"dbt build + testes"| DBT["dbt<br/>staging → marts"]
-            DBT --> PG
-            SS["Superset<br/>dashboard público"] --> PG
-            OM["OpenMetadata<br/>catálogo + linhagem"] -.->|"artefatos dbt"| PG
-        end
-    end
-
-    SRC["🏦 APIs públicas: BACEN SGS · PIX/Olinda · Focus · CVM (informe + CDA) · IBGE"] --> AF
-    DEV -->|"git push"| GH
-    CD -->|"push na develop"| QA
-    CD -->|"merge na main"| PROD
-    USER(["👤 Visitante — sem login"]) --> SS
-```
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/img/envs-pt-dark.svg">
+  <img alt="Promoção entre ambientes: a máquina do desenvolvedor rodando Docker Compose faz push para o GitHub Actions, que roda lint e valida o import das DAGs, e então faz deploy por SSH para o QA na branch develop e para o PROD na main, ambos numa única VM ARM Always Free da Oracle Cloud." src="docs/img/envs-pt-light.svg" width="100%">
+</picture>
 
 | Ambiente | Onde roda | Branch | Deploy |
 |---|---|---|---|
