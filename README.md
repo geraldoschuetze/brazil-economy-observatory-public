@@ -47,36 +47,10 @@ OpenMetadata read-only viewer login:
 
 ## Architecture — three environments, fully automated promotion
 
-```mermaid
-flowchart TB
-    DEV["💻 DEV — developer machine<br/>Docker Compose: Airflow 3 · PostgreSQL 16 · Superset"]
-
-    subgraph GH["GitHub — CI/CD (GitHub Actions)"]
-        direction LR
-        CI["CI: ruff lint + DAG import validation"]
-        CD["CD: deploy over SSH"]
-    end
-
-    subgraph ORACLE["☁️ Oracle Cloud — Always Free ARM VM, 24/7"]
-        direction TB
-        subgraph QA["🧪 QA — branch develop (ports 8081/8089)"]
-            QAS["Airflow · PostgreSQL · Superset"]
-        end
-        subgraph PROD["🚀 PROD — branch main (ports 8080/8088)"]
-            AF["Airflow 3<br/>ingestion DAGs"] -->|"raw"| PG[("PostgreSQL 16")]
-            AF -->|"dbt build + tests"| DBT["dbt<br/>staging → marts"]
-            DBT --> PG
-            SS["Superset<br/>public dashboard"] --> PG
-            OM["OpenMetadata<br/>catalog + lineage"] -.->|"dbt artifacts"| PG
-        end
-    end
-
-    SRC["🏦 Public APIs: BACEN SGS · PIX/Olinda · Focus · CVM (informe + CDA) · IBGE"] --> AF
-    DEV -->|"git push"| GH
-    CD -->|"push to develop"| QA
-    CD -->|"push to main"| PROD
-    USER(["👤 Visitor — no login"]) --> SS
-```
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/img/envs-dark.svg">
+  <img alt="Environment promotion: a developer machine running Docker Compose pushes to GitHub Actions, which lints and validates DAG imports, then deploys over SSH to QA on the develop branch and to PROD on main, both on one Oracle Cloud Always Free ARM VM." src="docs/img/envs-light.svg" width="100%">
+</picture>
 
 | Environment | Runs on | Branch | Deploy |
 |---|---|---|---|
