@@ -48,11 +48,15 @@
 <text x="948" y="92" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="19" font-weight="600" fill="#1f2328">Apache Superset</text>
 <text x="948" y="114" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15.5" fill="#59636e">public dashboard</text>
 <text x="948" y="134" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15.5" fill="#59636e">~29 charts</text>
-<rect x="930" y="200" width="240" height="104" rx="8" fill="#ffffff" stroke="#d1d9e0" stroke-width="1"/>
-<path d="M931 209 a8 8 0 0 1 8-8 h0 v102 h0 a8 8 0 0 1-8-8 Z" fill="#20A7C9"/>
-<text x="948" y="232" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="19" font-weight="600" fill="#1f2328">OpenMetadata</text>
-<text x="948" y="254" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15.5" fill="#59636e">column-level lineage</text>
-<text x="948" y="274" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15.5" fill="#59636e">glossary · data products</text>
+<rect x="930" y="190" width="240" height="60" rx="8" fill="#ffffff" stroke="#d1d9e0" stroke-width="1" stroke-dasharray="5 4"/>
+<path d="M931 199 a8 8 0 0 1 8-8 h0 v58 h0 a8 8 0 0 1-8-8 Z" fill="#017CEE"/>
+<text x="948" y="222" font-family="ui-monospace, SFMono-Regular, 'SF Mono', Menlo, monospace" font-size="18" font-weight="600" fill="#1f2328">om_ingest</text>
+<text x="948" y="244" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15.5" fill="#59636e">refreshes the catalog</text>
+<rect x="930" y="276" width="240" height="104" rx="8" fill="#ffffff" stroke="#d1d9e0" stroke-width="1"/>
+<path d="M931 285 a8 8 0 0 1 8-8 h0 v102 h0 a8 8 0 0 1-8-8 Z" fill="#20A7C9"/>
+<text x="948" y="308" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="19" font-weight="600" fill="#1f2328">OpenMetadata</text>
+<text x="948" y="330" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15.5" fill="#59636e">column-level lineage</text>
+<text x="948" y="350" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15.5" fill="#59636e">glossary · data products</text>
 <path d="M270 97 C300 97 300 106 324 106" fill="none" stroke="#8c959f" stroke-width="1.6" marker-end="url(#ah)"/>
 <path d="M270 193 C300 193 300 114 324 112" fill="none" stroke="#8c959f" stroke-width="1.6" marker-end="url(#ah)"/>
 <path d="M270 289 C300 289 300 122 324 118" fill="none" stroke="#8c959f" stroke-width="1.6" marker-end="url(#ah)"/>
@@ -66,7 +70,9 @@
 <path d="M750 126 L750 152" fill="none" stroke="#8c959f" stroke-width="1.6" marker-end="url(#ah)"/>
 <path d="M750 230 L750 258" fill="none" stroke="#8c959f" stroke-width="1.6" marker-end="url(#ah)"/>
 <path d="M855 292 C895 292 895 112 924 112" fill="none" stroke="#8c959f" stroke-width="1.6" marker-end="url(#ah)"/>
-<path d="M855 306 C895 306 895 252 924 252" fill="none" stroke="#8c959f" stroke-width="1.6" marker-end="url(#ah)"/>
+<path d="M855 306 C892 306 892 216 924 216" fill="none" stroke="#8c959f" stroke-width="1.6" stroke-dasharray="5 4" marker-end="url(#ah)"/>
+<text x="892" y="340" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" font-style="italic" fill="#818b98">Asset</text>
+<path d="M1050 250 L1050 272" fill="none" stroke="#8c959f" stroke-width="1.6" marker-end="url(#ah)"/>
 <rect x="330" y="392" width="525" height="52" rx="7" fill="#f6f8fa" stroke="#d1d9e0" stroke-width="1"/>
 <text x="348" y="414" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14.5" font-weight="600" fill="#1f2328">51 dbt data-quality tests + per-source freshness SLAs</text>
 <text x="348" y="434" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13" fill="#59636e">a failing test stops the build before it reaches the dashboard</text>
