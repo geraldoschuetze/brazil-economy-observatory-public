@@ -1,43 +1,88 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 460" width="1200" height="460" role="img" aria-label="Promoção entre ambientes: a máquina do desenvolvedor rodando Docker Compose faz push para o GitHub Actions, que roda lint e valida o import das DAGs, e então faz deploy por SSH para o QA na branch develop e para o PROD na main, ambos numa única VM ARM da Oracle Cloud.">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 780" width="1280" height="780" role="img" aria-label="Arquitetura em três ambientes. A máquina do desenvolvedor roda a stack em Docker Compose e faz push para o GitHub Actions, que roda lint, valida o import das DAGs e faz deploy por SSH para o QA na branch develop e o PROD na main, ambos numa única VM ARM Always Free da Oracle Cloud. Dentro do PROD, o Airflow ingere as APIs públicas de BACEN, CVM e IBGE no PostgreSQL, o dbt constrói e testa staging e marts, o Superset serve o dashboard público e o OpenMetadata cataloga a linhagem — tudo alcançado pelo visitante através de um Cloudflare Tunnel de saída.">
 <defs>
 <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#6e7681"/></marker>
 </defs>
-<rect width="1200" height="460" fill="none"/>
-<text x="30" y="36" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" font-weight="700" letter-spacing="1" fill="#8957e5">DEV · MÁQUINA DO DEV</text>
-<text x="390" y="36" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" font-weight="700" letter-spacing="1" fill="#017CEE">CI/CD · GITHUB ACTIONS</text>
-<text x="740" y="36" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" font-weight="700" letter-spacing="1" fill="#1FA97F">ORACLE CLOUD · VM ARM ALWAYS FREE, 24/7</text>
-<rect x="740" y="62" width="430" height="326" rx="10" fill="none" stroke="#2f363d" stroke-width="1.5" stroke-dasharray="6 4"/>
-<rect x="30" y="110" width="280" height="104" rx="8" fill="#151b23" stroke="#3d444d" stroke-width="1"/>
-<path d="M31 119 a8 8 0 0 1 8-8 h0 v102 h0 a8 8 0 0 1-8-8 Z" fill="#8957e5"/>
-<text x="48" y="142" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="19" font-weight="600" fill="#e6edf3">Docker Compose</text>
-<text x="48" y="164" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15.5" fill="#9198a1">Airflow 3 · PostgreSQL 16</text>
-<text x="48" y="184" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15.5" fill="#9198a1">Apache Superset</text>
-<text x="48" y="204" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15.5" fill="#9198a1">branch feature/local · make up</text>
-<rect x="390" y="110" width="280" height="104" rx="8" fill="#151b23" stroke="#3d444d" stroke-width="1"/>
-<path d="M391 119 a8 8 0 0 1 8-8 h0 v102 h0 a8 8 0 0 1-8-8 Z" fill="#017CEE"/>
-<text x="408" y="142" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="19" font-weight="600" fill="#e6edf3">CI — a cada push</text>
-<text x="408" y="164" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15.5" fill="#9198a1">ruff lint</text>
-<text x="408" y="184" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15.5" fill="#9198a1">validação de import das DAGs</text>
-<rect x="390" y="258" width="280" height="84" rx="8" fill="#151b23" stroke="#3d444d" stroke-width="1"/>
-<path d="M391 267 a8 8 0 0 1 8-8 h0 v82 h0 a8 8 0 0 1-8-8 Z" fill="#017CEE"/>
-<text x="408" y="290" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="19" font-weight="600" fill="#e6edf3">CD — deploy por SSH</text>
-<text x="408" y="312" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15.5" fill="#9198a1">só roda depois que o CI passa</text>
-<rect x="762" y="100" width="386" height="104" rx="8" fill="#151b23" stroke="#3d444d" stroke-width="1"/>
-<path d="M763 109 a8 8 0 0 1 8-8 h0 v102 h0 a8 8 0 0 1-8-8 Z" fill="#d29922"/>
-<text x="780" y="132" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="19" font-weight="600" fill="#e6edf3">QA — branch develop</text>
-<text x="780" y="154" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15.5" fill="#9198a1">portas 8081 / 8089</text>
-<text x="780" y="174" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15.5" fill="#9198a1">automático no push</text>
-<rect x="762" y="244" width="386" height="124" rx="8" fill="#151b23" stroke="#3d444d" stroke-width="1"/>
-<path d="M763 253 a8 8 0 0 1 8-8 h0 v122 h0 a8 8 0 0 1-8-8 Z" fill="#1FA97F"/>
-<text x="780" y="276" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="19" font-weight="600" fill="#e6edf3">PROD — branch main</text>
-<text x="780" y="298" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15.5" fill="#9198a1">portas 8080 / 8088</text>
-<text x="780" y="318" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15.5" fill="#9198a1">automático no merge</text>
-<text x="780" y="338" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15.5" fill="#9198a1">as superfícies públicas rodam aqui</text>
-<path d="M310 158 L384 158" fill="none" stroke="#6e7681" stroke-width="1.6" marker-end="url(#ah)"/>
-<text x="347" y="148" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" font-style="italic" fill="#7d8590">git push</text>
-<path d="M530 214 L530 252" fill="none" stroke="#6e7681" stroke-width="1.6" marker-end="url(#ah)"/>
-<path d="M670 286 C712 286 712 152 756 152" fill="none" stroke="#6e7681" stroke-width="1.6" marker-end="url(#ah)"/>
-<path d="M670 300 C712 300 712 300 756 300" fill="none" stroke="#6e7681" stroke-width="1.6" marker-end="url(#ah)"/>
-<rect x="30" y="404" width="1140" height="40" rx="7" fill="#0f141a" stroke="#2f363d" stroke-width="1"/>
-<text x="600" y="429" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13.5" fill="#9198a1">Toda mudança segue o mesmo caminho — DAGs, modelos dbt e dashboards do Superset igualmente:   testa local  →  push na develop  →  valida no QA  →  merge na main</text>
+<rect width="1280" height="780" fill="none"/>
+<text x="28" y="40" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" font-weight="700" letter-spacing="1" fill="#8957e5">DEV · MÁQUINA DO DEV</text>
+<text x="306" y="40" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" font-weight="700" letter-spacing="1" fill="#017CEE">CI/CD · GITHUB ACTIONS</text>
+<text x="560" y="40" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" font-weight="700" letter-spacing="1" fill="#1FA97F">ORACLE CLOUD · VM ARM ALWAYS FREE, 24/7</text>
+<rect x="560" y="70" width="692" height="596" rx="12" fill="#0d1117" stroke="#2f363d" stroke-width="1.5" stroke-dasharray="6 4"/>
+<rect x="28" y="80" width="250" height="128" rx="8" fill="#151b23" stroke="#3d444d" stroke-width="1"/>
+<path d="M29 89 a8 8 0 0 1 8-8 h0 v126 h0 a8 8 0 0 1-8-8 Z" fill="#8957e5"/>
+<text x="46" y="110" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="19" font-weight="600" fill="#e6edf3">Docker Compose</text>
+<text x="46" y="132" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15.5" fill="#9198a1">Airflow 3 · PostgreSQL 16</text>
+<text x="46" y="152" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15.5" fill="#9198a1">Apache Superset</text>
+<text x="46" y="172" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15.5" fill="#9198a1">branch feature/local</text>
+<text x="46" y="192" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15.5" fill="#9198a1">sobe com make up</text>
+<rect x="28" y="340" width="250" height="108" rx="8" fill="#151b23" stroke="#3d444d" stroke-width="1"/>
+<path d="M29 349 a8 8 0 0 1 8-8 h0 v106 h0 a8 8 0 0 1-8-8 Z" fill="#8957e5"/>
+<text x="46" y="370" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="19" font-weight="600" fill="#e6edf3">APIs públicas</text>
+<text x="46" y="392" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15.5" fill="#9198a1">BACEN — SGS · PIX · Focus</text>
+<text x="46" y="412" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15.5" fill="#9198a1">CVM — informe diário · CDA</text>
+<text x="46" y="432" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15.5" fill="#9198a1">IBGE — IPCA</text>
+<rect x="28" y="520" width="508" height="124" rx="8" fill="#0f141a" stroke="#3d444d" stroke-width="1"/>
+<path d="M29 529 a8 8 0 0 1 8-8 h0 v122 h0 a8 8 0 0 1-8-8 Z" fill="#d29922"/>
+<text x="46" y="550" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="19" font-weight="600" fill="#e6edf3">Caminho de promoção</text>
+<text x="46" y="572" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15.5" fill="#9198a1">1 · testa local no DEV</text>
+<text x="46" y="592" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15.5" fill="#9198a1">2 · push na develop → validado no QA</text>
+<text x="46" y="612" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15.5" fill="#9198a1">3 · merge na main → no ar em PROD</text>
+<text x="46" y="632" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15.5" fill="#9198a1">DAGs, modelos dbt e dashboards seguem o mesmo caminho</text>
+<rect x="306" y="80" width="230" height="104" rx="8" fill="#151b23" stroke="#3d444d" stroke-width="1"/>
+<path d="M307 89 a8 8 0 0 1 8-8 h0 v102 h0 a8 8 0 0 1-8-8 Z" fill="#017CEE"/>
+<text x="324" y="110" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="19" font-weight="600" fill="#e6edf3">CI — a cada git push</text>
+<text x="324" y="132" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15.5" fill="#9198a1">ruff lint</text>
+<text x="324" y="152" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15.5" fill="#9198a1">valida import das DAGs</text>
+<rect x="306" y="214" width="230" height="84" rx="8" fill="#151b23" stroke="#3d444d" stroke-width="1"/>
+<path d="M307 223 a8 8 0 0 1 8-8 h0 v82 h0 a8 8 0 0 1-8-8 Z" fill="#017CEE"/>
+<text x="324" y="244" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="19" font-weight="600" fill="#e6edf3">CD — deploy por SSH</text>
+<text x="324" y="266" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15.5" fill="#9198a1">só depois do CI verde</text>
+<rect x="580" y="142" width="652" height="76" rx="8" fill="#0f141a" stroke="#3d444d" stroke-width="1"/>
+<path d="M581 151 a8 8 0 0 1 8-8 h0 v74 h0 a8 8 0 0 1-8-8 Z" fill="#d29922"/>
+<text x="598" y="172" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="18" font-weight="600" fill="#e6edf3">QA — branch develop · portas 8081 / 8089</text>
+<text x="598" y="194" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15.5" fill="#9198a1">Airflow · PostgreSQL · Superset — deploy automático a cada push</text>
+<rect x="580" y="240" width="652" height="320" rx="10" fill="#0f141a" stroke="#1FA97F" stroke-width="1.5"/>
+<text x="600" y="268" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="18" font-weight="600" fill="#e6edf3">PROD — branch main · portas 8080 / 8088</text>
+<text x="600" y="289" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14.5" fill="#9198a1">deploy automático no merge</text>
+<rect x="600" y="306" width="190" height="84" rx="8" fill="#151b23" stroke="#3d444d" stroke-width="1"/>
+<path d="M601 315 a8 8 0 0 1 8-8 h0 v82 h0 a8 8 0 0 1-8-8 Z" fill="#017CEE"/>
+<text x="618" y="336" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="17" font-weight="600" fill="#e6edf3">Airflow 3</text>
+<text x="618" y="358" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15.5" fill="#9198a1">DAGs de ingestão</text>
+<path d="M811 319 a95.0 9 0 0 1 190 0 v78 a95.0 9 0 0 1 -190 0 Z" fill="#151b23" stroke="#336791" stroke-width="1.5"/>
+<path d="M811 319 a95.0 9 0 0 0 190 0" fill="none" stroke="#336791" stroke-width="1.5"/>
+<text x="906.0" y="354" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, 'SF Mono', Menlo, monospace" font-size="17" font-weight="600" fill="#e6edf3">PostgreSQL 16</text>
+<text x="906.0" y="376" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" fill="#9198a1">raw · staging · marts</text>
+<rect x="1022" y="306" width="190" height="84" rx="8" fill="#151b23" stroke="#3d444d" stroke-width="1"/>
+<path d="M1023 315 a8 8 0 0 1 8-8 h0 v82 h0 a8 8 0 0 1-8-8 Z" fill="#20A7C9"/>
+<text x="1040" y="336" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="17" font-weight="600" fill="#e6edf3">Apache Superset</text>
+<text x="1040" y="358" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15.5" fill="#9198a1">dashboard público</text>
+<rect x="600" y="430" width="190" height="104" rx="8" fill="#151b23" stroke="#3d444d" stroke-width="1"/>
+<path d="M601 439 a8 8 0 0 1 8-8 h0 v102 h0 a8 8 0 0 1-8-8 Z" fill="#FF694B"/>
+<text x="618" y="460" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="17" font-weight="600" fill="#e6edf3">dbt</text>
+<text x="618" y="482" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15.5" fill="#9198a1">staging → marts</text>
+<text x="618" y="502" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15.5" fill="#9198a1">build + 51 testes</text>
+<rect x="1022" y="430" width="190" height="104" rx="8" fill="#151b23" stroke="#3d444d" stroke-width="1"/>
+<path d="M1023 439 a8 8 0 0 1 8-8 h0 v102 h0 a8 8 0 0 1-8-8 Z" fill="#8957e5"/>
+<text x="1040" y="460" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="17" font-weight="600" fill="#e6edf3">OpenMetadata</text>
+<text x="1040" y="482" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15.5" fill="#9198a1">catálogo + linhagem</text>
+<text x="1040" y="502" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15.5" fill="#9198a1">coluna a coluna</text>
+<rect x="580" y="580" width="652" height="56" rx="8" fill="#0f141a" stroke="#3d444d" stroke-width="1"/>
+<path d="M581 589 a8 8 0 0 1 8-8 h0 v54 h0 a8 8 0 0 1-8-8 Z" fill="#1FA97F"/>
+<text x="598" y="615.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15.5" font-weight="600" fill="#e6edf3">Cloudflare Tunnel — TLS, só saída, nenhuma porta de entrada aberta na VM</text>
+<rect x="962" y="696" width="250" height="56" rx="8" fill="#151b23" stroke="#3d444d" stroke-width="1"/>
+<path d="M963 705 a8 8 0 0 1 8-8 h0 v54 h0 a8 8 0 0 1-8-8 Z" fill="#59636e"/>
+<text x="980" y="731.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="17" font-weight="600" fill="#e6edf3">Visitante — sem login</text>
+<path d="M278 132 L300 132" fill="none" stroke="#6e7681" stroke-width="1.6" marker-end="url(#ah)"/>
+<path d="M421 184 L421 208" fill="none" stroke="#6e7681" stroke-width="1.6" marker-end="url(#ah)"/>
+<path d="M536 250 C556 250 556 180 574 180" fill="none" stroke="#6e7681" stroke-width="1.6" marker-end="url(#ah)"/>
+<path d="M536 268 C556 268 556 300 574 300" fill="none" stroke="#6e7681" stroke-width="1.6" marker-end="url(#ah)"/>
+<path d="M278 386 C420 386 470 348 594 348" fill="none" stroke="#6e7681" stroke-width="1.6" marker-end="url(#ah)"/>
+<path d="M790 344 L805 352" fill="none" stroke="#6e7681" stroke-width="1.6" marker-end="url(#ah)"/>
+<path d="M695 390 L695 426" fill="none" stroke="#6e7681" stroke-width="1.6" marker-end="url(#ah)"/>
+<path d="M770 426 C820 422 850 414 878 410" fill="none" stroke="#6e7681" stroke-width="1.6" marker-end="url(#ah)"/>
+<text x="872" y="444" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13.5" font-style="italic" fill="#7d8590">build + testes</text>
+<path d="M1001 352 L1016 344" fill="none" stroke="#6e7681" stroke-width="1.6" marker-end="url(#ah)"/>
+<path d="M790 482 L1016 482" fill="none" stroke="#6e7681" stroke-width="1.6" stroke-dasharray="5 4" marker-end="url(#ah)"/>
+<text x="903" y="474" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13.5" font-style="italic" fill="#7d8590">artefatos dbt</text>
+<path d="M906 560 L906 576" fill="none" stroke="#6e7681" stroke-width="1.6" marker-end="url(#ah)"/>
+<path d="M1087 636 L1087 692" fill="none" stroke="#6e7681" stroke-width="1.6" marker-end="url(#ah)"/>
 </svg>
