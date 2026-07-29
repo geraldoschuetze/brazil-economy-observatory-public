@@ -94,24 +94,10 @@ The runtime pipeline is **event-driven**: nothing runs on a guessed clock. Each
 ingestion DAG emits an Airflow **Asset** when its `raw` data lands; `dbt_transform`
 waits on *all* of them, and its `marts` Asset in turn triggers `om_ingest`.
 
-```mermaid
-flowchart LR
-    subgraph SRC["🏦 Public APIs"]
-        BACEN["BACEN<br/>SGS · PIX · Focus"]
-        CVM["CVM<br/>informe · CDA"]
-        IBGE["IBGE<br/>IPCA"]
-    end
-    SRC --> ING["Ingestion DAGs<br/>ingest_*"]
-    ING -->|"upsert (idempotent)"| RAW[("raw")]
-    ING -.->|"emit raw_* Asset"| EV(("Asset events"))
-    RAW --> DBT
-    EV ==>|"all raw_* landed"| DBT["dbt_transform DAG<br/>freshness → build + tests → docs"]
-    DBT --> STG[("staging<br/>views")] --> MARTS[("marts<br/>tables")]
-    DBT -.->|"emit marts Asset"| EV2(("marts Asset"))
-    EV2 ==> OMI["om_ingest DAG"] --> OM["OpenMetadata<br/>catalog + lineage"]
-    MARTS --> SS["Superset<br/>public dashboard"]
-    SS & OM --> CF["Cloudflare Tunnel<br/>TLS · no inbound ports"] --> USER(["👤 Visitor — no login"])
-```
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/img/flow-dark.svg">
+  <img alt="End-to-end flow: public sources feed six Airflow ingestion DAGs, which emit Assets that trigger an event-driven dbt build through raw, staging and marts in PostgreSQL; the marts Asset triggers om_ingest, and Superset and OpenMetadata serve the result publicly." src="docs/img/flow-light.svg" width="100%">
+</picture>
 
 A failing dbt test stops the bad data at `dbt build`, before it can reach `marts`
 or the charts. Both public surfaces (Superset, OpenMetadata) are read-only and
