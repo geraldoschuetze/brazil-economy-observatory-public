@@ -95,24 +95,10 @@ DAG de ingestão emite um **Asset** do Airflow quando seu `raw` aterrissa; o
 `dbt_transform` espera por *todos* eles, e seu Asset `marts` por sua vez dispara o
 `om_ingest`.
 
-```mermaid
-flowchart LR
-    subgraph SRC["🏦 APIs públicas"]
-        BACEN["BACEN<br/>SGS · PIX · Focus"]
-        CVM["CVM<br/>informe · CDA"]
-        IBGE["IBGE<br/>IPCA"]
-    end
-    SRC --> ING["DAGs de ingestão<br/>ingest_*"]
-    ING -->|"upsert (idempotente)"| RAW[("raw")]
-    ING -.->|"emite Asset raw_*"| EV(("Eventos de Asset"))
-    RAW --> DBT
-    EV ==>|"todos os raw_* prontos"| DBT["DAG dbt_transform<br/>freshness → build + testes → docs"]
-    DBT --> STG[("staging<br/>views")] --> MARTS[("marts<br/>tabelas")]
-    DBT -.->|"emite Asset marts"| EV2(("Asset marts"))
-    EV2 ==> OMI["DAG om_ingest"] --> OM["OpenMetadata<br/>catálogo + linhagem"]
-    MARTS --> SS["Superset<br/>dashboard público"]
-    SS & OM --> CF["Cloudflare Tunnel<br/>TLS · sem portas de entrada"] --> USER(["👤 Visitante — sem login"])
-```
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/img/flow-pt-dark.svg">
+  <img alt="Fluxo de ponta a ponta: fontes públicas alimentam seis DAGs de ingestão no Airflow, que emitem Assets disparando um build dbt orientado a evento por raw, staging e marts no PostgreSQL; o Asset de marts dispara o om_ingest, e Superset e OpenMetadata publicam o resultado." src="docs/img/flow-pt-light.svg" width="100%">
+</picture>
 
 Um teste dbt que falha barra o dado ruim no `dbt build`, antes de chegar aos `marts`
 ou aos gráficos. As duas superfícies públicas (Superset, OpenMetadata) são
